@@ -1,0 +1,2111 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>TVBox 配置解析器</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+:root{
+  --bg:#f5f7fa;--card:#fff;--border:#e2e8f0;--text:#1a202c;--text2:#4a5568;
+  --primary:#3182ce;--primary-h:#2c5282;--accent:#38b2ac;--danger:#e53e3e;
+  --success:#38a169;--warning:#d69e2e;--radius:8px;
+  --shadow:0 1px 3px rgba(0,0,0,.08);--shadow2:0 4px 12px rgba(0,0,0,.12)
+}
+body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;background:var(--bg);color:var(--text);line-height:1.6;min-height:100vh}
+.app{max-width:960px;margin:0 auto;padding:24px 16px 60px}
+header{text-align:center;padding:20px 0 28px}
+header h1{font-size:1.6rem;font-weight:700;letter-spacing:.5px}
+header .sub{color:var(--text2);font-size:.85rem;margin-top:4px}
+.card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);box-shadow:var(--shadow);padding:20px;margin-bottom:16px;transition:box-shadow .2s}
+.card:hover{box-shadow:var(--shadow2)}
+.card-title{font-size:.95rem;font-weight:600;margin-bottom:14px;display:flex;align-items:center;gap:8px}
+.card-title .ic{font-size:1.1rem}
+/* Tabs */
+.tabs{display:flex;gap:4px;margin-bottom:14px;border-bottom:2px solid var(--border);padding-bottom:0}
+.tab-btn{padding:8px 16px;border:none;background:none;font-size:.85rem;color:var(--text2);cursor:pointer;border-bottom:2px solid transparent;margin-bottom:-2px;transition:all .2s}
+.tab-btn.active{color:var(--primary);border-color:var(--primary);font-weight:600}
+.tab-btn:hover{color:var(--text)}
+.tab-panel{display:none}
+.tab-panel.active{display:block}
+/* Textarea & Inputs */
+textarea{width:100%;min-height:120px;border:1px solid var(--border);border-radius:6px;padding:10px 12px;font-size:.85rem;font-family:inherit;resize:vertical;transition:border-color .2s;line-height:1.5}
+textarea:focus{outline:none;border-color:var(--primary);box-shadow:0 0 0 3px rgba(49,130,206,.15)}
+input[type="file"]{font-size:.85rem}
+/* Buttons */
+.btn-row{display:flex;flex-wrap:wrap;gap:8px;margin-top:14px}
+.btn{padding:8px 18px;border:none;border-radius:6px;font-size:.85rem;font-weight:500;cursor:pointer;transition:all .15s;display:inline-flex;align-items:center;gap:6px}
+.btn-primary{background:var(--primary);color:#fff}
+.btn-primary:hover{background:var(--primary-h)}
+.btn-outline{background:transparent;border:1px solid var(--border);color:var(--text2)}
+.btn-outline:hover{border-color:var(--primary);color:var(--primary)}
+.btn-danger{background:#fff;border:1px solid var(--danger);color:var(--danger)}
+.btn-danger:hover{background:var(--danger);color:#fff}
+.btn-success{background:var(--success);color:#fff}
+.btn-success:hover{background:#2f855a}
+.btn-multirepo{background:linear-gradient(90deg,#805ad5,#6b46c1);color:#fff}
+.btn-multirepo:hover{background:linear-gradient(90deg,#6b46c1,#553c9a)}
+.btn:disabled{opacity:.5;cursor:not-allowed}
+.btn-sm{padding:5px 12px;font-size:.8rem}
+/* Progress */
+.progress-wrap{margin-top:14px;display:none}
+.progress-bar{height:6px;background:var(--border);border-radius:3px;overflow:hidden}
+.progress-fill{height:100%;background:linear-gradient(90deg,var(--primary),var(--accent));border-radius:3px;transition:width .3s;width:0%}
+.progress-text{font-size:.78rem;color:var(--text2);margin-top:6px;display:flex;flex-direction:column;align-items:flex-start;gap:2px}
+.progress-text #progressLabel{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;width:100%}
+/* Stats bar */
+.stats-bar{display:flex;flex-wrap:wrap;gap:12px;padding:12px 16px;background:#f0f7ff;border:1px solid #bee3f8;border-radius:6px;margin-top:14px;font-size:.82rem;color:var(--primary-h);font-weight:500}
+.stats-bar span{display:flex;align-items:center;gap:4px}
+/* Results table */
+.result-toolbar{display:flex;flex-wrap:wrap;align-items:center;gap:8px;padding:10px 14px;background:#f7fafc;border:1px solid var(--border);border-radius:6px;margin-bottom:10px}
+.result-toolbar .info{margin-left:auto;font-size:.82rem;color:var(--text2)}
+.table-wrap{max-height:480px;overflow-y:auto;border:1px solid var(--border);border-radius:6px}
+table{width:100%;border-collapse:collapse;font-size:.82rem}
+thead{position:sticky;top:0;z-index:1}
+th{background:#edf2f7;padding:9px 12px;text-align:left;font-weight:600;color:var(--text2);border-bottom:2px solid var(--border);white-space:nowrap;font-size:.78rem}
+td{padding:8px 12px;border-bottom:1px solid #edf2f7;vertical-align:middle}
+tr:hover td{background:#f7fafc}
+tr.selected td{background:#ebf8ff}
+.col-key{max-width:100px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.col-name{max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:500}
+.col-api{max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--text2);font-size:.78rem}
+.col-type{max-width:50px}
+.col-tag{font-size:.75rem;padding:2px 8px;border-radius:10px;font-weight:500;white-space:nowrap}
+.tag-3{background:#fed7d7;color:#c53030}
+.tag-0{background:#c6f6d5;color:#276749}
+.tag-1{background:#bee3f8;color:#2b6cb0}
+.tag-2{background:#fefcbf;color:#975a16}
+.tag-other{background:#e2e8f0;color:#4a5568}
+.empty-state{text-align:center;padding:48px 20px;color:var(--text2)}
+.empty-state .em{font-size:2.4rem;margin-bottom:10px}
+.empty-state p{font-size:.9rem}
+/* Source log */
+.log-list{max-height:180px;overflow-y:auto;font-size:.78rem;margin-top:10px;border:1px solid var(--border);border-radius:6px;background:#fafafa}
+.log-item{padding:7px 12px;border-bottom:1px solid #edf2f7;display:flex;align-items:flex-start;gap:6px}
+.log-item:last-child{border-bottom:none}
+.log-item .dot{width:6px;height:6px;border-radius:50%;margin-top:6px;flex-shrink:0}
+.dot-ok{background:var(--success)}
+.dot-err{background:var(--danger)}
+.dot-warn{background:var(--warning)}
+.log-item .msg{flex:1;word-break:break-all;line-height:1.4}
+/* Export */
+.export-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:14px}
+@media(max-width:600px){.export-grid{grid-template-columns:1fr}}
+.export-preview{background:#1a202c;color:#e2e8f0;border-radius:6px;padding:12px;font-family:monospace;font-size:.75rem;max-height:180px;overflow:auto;line-height:1.5}
+/* Toast */
+.toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:#2d3748;color:#fff;padding:10px 20px;border-radius:6px;font-size:.85rem;box-shadow:var(--shadow2);z-index:9999;opacity:0;transition:opacity .3s;pointer-events:none}
+.toast.show{opacity:1}
+/* Checkbox */
+input[type="checkbox"]{width:15px;height:15px;accent-color:var(--primary);cursor:pointer}
+/* Section header for nodes */
+.node-section{margin-bottom:16px}
+.node-section:last-child{margin-bottom:0}
+.node-section-title{font-size:.9rem;font-weight:600;padding:8px 14px;background:#f0f7ff;border-radius:6px 6px 0 0;border:1px solid #bee3f8;border-bottom:none;display:flex;align-items:center;gap:8px}
+.node-section-body{border:1px solid var(--border);border-bottom:1px solid var(--border);border-radius:0 0 6px 6px;overflow:hidden}
+/* Selected files */
+.file-list{margin-top:10px;display:flex;flex-wrap:wrap;gap:6px;align-items:center}
+.file-list-title{font-size:.8rem;color:var(--text2);width:100%;margin-bottom:2px}
+.file-chip{font-size:.75rem;background:#edf2f7;border:1px solid var(--border);color:var(--text2);padding:3px 10px;border-radius:12px;max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+/* Advanced settings */
+.adv{margin-top:14px;border:1px solid var(--border);border-radius:6px;background:#fafbfc;padding:8px 12px}
+.adv summary{cursor:pointer;font-size:.85rem;font-weight:500;user-select:none}
+.adv-body{margin-top:8px;display:flex;flex-direction:column;gap:6px}
+.adv-body label{font-size:.82rem;color:var(--text2);font-weight:500}
+.proxy-input{width:100%;border:1px solid var(--border);border-radius:6px;padding:8px 10px;font-size:.85rem}
+.proxy-input:focus{outline:none;border-color:var(--primary);box-shadow:0 0 0 3px rgba(49,130,206,.15)}
+.adv .hint{font-size:.78rem;color:var(--text2);line-height:1.5}
+.adv .hint code{background:#edf2f7;padding:1px 5px;border-radius:4px}
+/* Hint bar */
+.hint-bar{font-size:.78rem;color:#15803d;background:#f0fdf4;border:1px solid #bbf7d0;border-radius:6px;padding:8px 10px;margin-bottom:10px;line-height:1.5}
+</style>
+</head>
+<body>
+<div class="app">
+<header>
+<h1>📡 TVBox 配置解析器</h1>
+<div class="sub">输入链接 / 粘贴内容 / 上传文件 → 解析影视节点 → 自由组合 → 导出 JSON</div>
+</header>
+
+<!-- Input Card -->
+<div class="card">
+<div class="card-title"><span class="ic">📥</span> 输入配置源</div>
+<div class="tabs" id="inputTabs">
+<button class="tab-btn active" data-tab="tab-url">URL 链接</button>
+<button class="tab-btn" data-tab="tab-text">粘贴json文本</button>
+<button class="tab-btn" data-tab="tab-file">上传文件</button>
+</div>
+<div class="tab-panel active" id="tab-url">
+<div class="hint-bar">⚠️ 如果解析失败，请改用右侧「粘贴json文本」</div>
+<textarea id="inputUrl" placeholder="粘贴任意包含链接的文本（每行一个链接也可），系统自动提取其中的 URL 并解析：&#10;https://example.com/config.json&#10;也可在一段说明文字里附带 https://example.com/sites.json 一起解析"></textarea>
+</div>
+<div class="tab-panel" id="tab-text">
+<textarea id="inputText" placeholder="在此粘贴完整的 TVBox 配置 JSON 文本，直接解析（无需链接）：&#10;{&#10;  &#34;sites&#34;: [...],&#10;  &#34;spider&#34;: &#34;https://.../spider.jar&#34;&#10;}"></textarea>
+</div>
+<div class="tab-panel" id="tab-file">
+<input type="file" id="inputFile" accept=".json,.txt" multiple>
+<p style="font-size:.78rem;color:var(--text2);margin-top:8px">支持 .json / .txt，可多选批量上传，点击「解析」一次性全部处理</p>
+<div id="fileList" class="file-list"></div>
+</div>
+
+<details class="adv">
+<summary>⚙️ 高级设置（可选）</summary>
+<div class="adv-body">
+<label>自定义代理地址（留空则自动尝试公开代理）</label>
+<input type="text" id="proxyInput" class="proxy-input" placeholder="https://你的代理/?url=">
+<p class="hint">浏览器有跨域(CORS)限制，部分 TVBox 能解析的链接网页直连会失败。本工具使用「3 路并发竞跑」机制：直连 + thingproxy + codetabs 同时发起，谁先成功返回谁，单通道超时 4 秒，最快 ~200ms。若仍有 URL 获取失败（CORS 限制），请直接改用「粘贴json文本」tab——在 TVBox 里打开链接，复制 JSON 内容粘贴即可绕过所有跨域限制。</p>
+</div>
+</details>
+
+<div class="btn-row">
+<button class="btn btn-primary" id="btnParse">🔍 解析</button>
+<button class="btn btn-multirepo" id="btnMultiRepo">🏬 组合多仓</button>
+<button class="btn btn-outline" id="btnClear">🗑️ 清空</button>
+</div>
+
+<div class="progress-wrap" id="progressWrap">
+<div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
+<div class="progress-text"><span id="progressLabel">正在解析...</span><span id="progressCount"></span></div>
+</div>
+</div>
+
+<!-- Parse Log -->
+<div class="card" id="logCard" style="display:none">
+<div class="card-title"><span class="ic">📝</span> 解析日志</div>
+<div class="log-list" id="logList"></div>
+</div>
+
+<!-- Stats -->
+<div id="statsBar" style="display:none" class="stats-bar"></div>
+
+<!-- Results Card -->
+<div class="card" id="resultsCard" style="display:none">
+<div class="card-title"><span class="ic">📺</span> 解析结果</div>
+<div class="tabs" id="resultTabs">
+<button class="tab-btn active" data-tab="res-sites">影视源</button>
+<button class="tab-btn" data-tab="res-lives">直播源</button>
+<button class="tab-btn" data-tab="res-parses">解析器</button>
+<button class="tab-btn" data-tab="res-wallpapers">壁纸</button>
+<button class="tab-btn" data-tab="res-rules">规则</button>
+</div>
+<div id="resultsBody"></div>
+</div>
+
+<!-- Export Card -->
+<div class="card" id="exportCard" style="display:none">
+<div class="card-title"><span class="ic">📤</span> 组合 & 导出</div>
+<div class="result-toolbar">
+<button class="btn btn-sm btn-outline" id="btnSelectAll">✅ 全选</button>
+<button class="btn btn-sm btn-outline" id="btnInverse">🔄 反选</button>
+<button class="btn btn-sm btn-danger" id="btnClearSel">❌ 清除选中</button>
+<span class="info" id="exportInfo">已选中: 0 个节点</span>
+</div>
+<div class="result-toolbar" style="margin-bottom:10px">
+<label style="display:flex;align-items:center;gap:6px;font-size:.82rem;cursor:pointer">
+<input type="checkbox" id="chkGlobal" checked> 包含全局配置（spider / logo / wallpaper 等，搜索播放必需）
+</label>
+<label style="display:flex;align-items:center;gap:6px;font-size:.82rem;cursor:pointer;margin-top:6px">
+<input type="checkbox" id="chkCompat" checked> TVBox 兼容模式（修正 parses.ext 等致命类型并补全缺失 type，避免「配置解析失败」，推荐保持勾选）
+</label>
+<label style="display:flex;align-items:center;gap:6px;font-size:.82rem;cursor:pointer;margin-top:6px">
+<input type="checkbox" id="chkSpiderOverride"> 强制使用上方 spider（勾选后覆盖所有源；不勾选 = 单源自动跟随源自带 spider，多源合并自动选「覆盖面最广」的 spider，无需手动）
+</label>
+<div style="margin:4px 0 2px 22px">
+<input type="text" id="spiderOverrideUrl" style="width:100%;box-sizing:border-box;font-size:.76rem;padding:4px 6px;border:1px solid #cbd5e0;border-radius:4px" value="https://tc-new.z.wiki/autoupload/k2fxc/20260821/n5ke/fish08211330.jar;md5;ba25eb6bad40a9352017438a47865a10" placeholder="默认/强制 spider 绝对 URL（.jar）。TVBox 的 spider jar 会随时间失效，解析器会在打开时自动探测并更新为当前可用地址">
+</div>
+<div id="spiderProbeStatus" style="margin:2px 0 4px 22px;font-size:.72rem;color:#15803d;min-height:1.1em">正在自动探测可用 spider...</div>
+<div style="margin:2px 0 4px 22px;font-size:.7rem;color:#b45309;background:#fffbeb;border:1px solid #fde68a;border-radius:4px;padding:4px 6px">
+⚠️ spider jar 地址不是永久稳定的：作者的 jar 会更新/删除/换域。多源合并时解析器会自动选「覆盖面最广」的 spider（覆盖依赖它的站点最多的那个源），尽量让最多站点可用；若勾选上方「强制使用」则可手动指定。如果默认地址某天也报 jar load err，请打开 TVBox 里一个能正常加载的配置源，把它里面的 spider 地址复制到上方框中替换即可。
+</div>
+<label style="display:flex;align-items:center;gap:6px;font-size:.82rem;cursor:pointer;margin-top:4px">
+<input type="checkbox" id="chkAudit" checked> 导出前自动兼容审核（检查必填字段 / 残余类型冲突，给出通关提示）
+</label>
+<label style="display:flex;align-items:center;gap:6px;font-size:.82rem;cursor:pointer;margin-top:4px">
+<input type="checkbox" id="chkStrict"> 严格模式：剔除未通过审核的节点（缺少 key/api、name/url 等，确保文件干净通关）
+</label>
+<button class="btn btn-sm btn-outline" id="btnToggleGlobal" style="margin-left:auto">查看全局字段</button>
+</div>
+<div id="globalPreviewWrap" style="display:none;margin-bottom:12px">
+<div class="export-preview" id="globalPreview" style="background:#2d3748"></div>
+</div>
+<div id="exportPreviewWrap" style="display:none">
+<p style="font-size:.82rem;color:var(--text2);margin-bottom:6px">导出预览：</p>
+<div class="export-preview" id="exportPreview"></div>
+<div id="auditBox" class="audit-box" style="display:none"></div>
+</div>
+<div class="export-grid">
+<button class="btn btn-primary" id="btnCopy">📋 复制 JSON</button>
+<button class="btn btn-success" id="btnExport">⬇️ 导出 data.json</button>
+</div>
+</div>
+</div>
+
+<!-- Multi-repo Card -->
+<div class="card" id="multiRepoCard" style="display:none">
+<div class="card-title"><span class="ic">🏬</span> 组合多仓 JSON（配置源汇总索引）</div>
+<p style="font-size:.8rem;color:var(--text2);margin-bottom:12px">把「名字 + 配置源链接」直接拼成一份 TVBox 多仓索引，<b>全程不联网、瞬间生成</b>——多仓本身只是一份目录，各仓库由 TVBox 加载时自行去原链接拉取、互不合并。两种写法：① 一行一个 <code>名字，链接</code>（中英文逗号均可），直接指定仓库名；② 只填链接，仓库名自动取域名。名字都能点「编辑名称」批量改后再导出。</p>
+<div class="result-toolbar">
+<button class="btn btn-sm btn-outline" id="btnMultiRepoCopy">📋 复制 JSON</button>
+<button class="btn btn-sm btn-success" id="btnMultiRepoExport">⬇️ 导出 data.json</button>
+<button class="btn btn-sm btn-outline" id="btnMultiRepoEdit" style="margin-left:auto">✏️ 编辑名称</button>
+<span class="info" id="multiRepoInfo"></span>
+</div>
+<div class="export-preview" id="multiRepoPreview" style="max-height:300px"></div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+(function(){
+'use strict';
+
+// ============ State ============
+let allNodes = { sites: [], lives: [], parses: [], wallpapers: [], rules: [] };
+let globalFields = {};
+let currentBaseUrl = null;     // 当前正在解析的源地址（用于把相对 spider/jar 解析成绝对 URL）
+let spiderStrippedFlag = false; // 导出时是否因相对路径而自动剥离了 spider（供审核提示）
+let spiderFallbackFlag = false; // 导出时是否因源 spider 不可达而回退到备用 spider（供审核提示）
+let spiderCoverageFlag = false; // 导出时是否为「多源合并后自动选覆盖面最广 spider」
+let sourceCount = 0;            // 本次解析合并的源配置数量（用于多源默认回退策略）
+let sourceSpiders = [];         // 每个源的 spider 覆盖统计：{name, spider, dependent, total}
+let chosenSpiderMeta = null;    // 选中的 spider 元数据：{url, dependent, sourcesCount, reason}（供审核提示）
+let perSiteJarCount = 0;        // 导出时为多少站点自动补上了「站点级 jar」（多源合并的核心修复，供审核提示）
+let selections = { sites: new Set(), lives: new Set(), parses: new Set(), wallpapers: new Set(), rules: new Set() };
+let fetchLog = [];
+
+// ============ DOM refs ============
+const $ = s => document.querySelector(s);
+const $$ = s => document.querySelectorAll(s);
+
+// ============ Toast ============
+function toast(msg){
+  const t = $('#toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  clearTimeout(t._timer);
+  t._timer = setTimeout(()=>t.classList.remove('show'), 2200);
+}
+
+// ============ Tab switching ============
+$$('.tabs').forEach(bar => {
+  bar.addEventListener('click', e => {
+    const btn = e.target.closest('.tab-btn');
+    if(!btn) return;
+    const panelId = btn.dataset.tab;
+    bar.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    // Input tabs: toggle .tab-panel class
+    const parent = bar.closest('.card');
+    parent.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+    const panel = document.getElementById(panelId);
+    if(panel) panel.classList.add('active');
+    // Result tabs: toggle #panel-{cat} visibility
+    if(bar.id === 'resultTabs' && panelId.startsWith('res-')){
+      const cat = panelId.replace('res-','');
+      const cats = ['sites','lives','parses','wallpapers','rules'];
+      cats.forEach(c => {
+        const p = document.getElementById('panel-'+c);
+        if(p) p.style.display = c === cat ? 'block' : 'none';
+      });
+    }
+  });
+});
+
+// ============ Input gathering ============
+function gatherInputs(){
+  const activeTab = $('#inputTabs .tab-btn.active').dataset.tab;
+  if(activeTab === 'tab-url'){
+    const raw = $('#inputUrl').value.trim();
+    if(!raw) return null;
+    // mode 'url': extract links from pasted content, then fetch + parse
+    return Promise.resolve([{ name: '链接输入', content: raw, mode: 'url' }]);
+  }
+  if(activeTab === 'tab-text'){
+    const raw = $('#inputText').value.trim();
+    if(!raw) return null;
+    // mode 'json': treat pasted content as raw JSON text, parse directly
+    return Promise.resolve([{ name: 'JSON 文本', content: raw, mode: 'json' }]);
+  }
+  // file tab
+  const files = $('#inputFile').files;
+  if(files.length === 0) return null;
+  return readFiles(files); // each file carries mode: 'auto'
+}
+
+function readFiles(files){
+  return Promise.all(Array.from(files).map(f => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve({ name: f.name, content: reader.result, mode: 'auto' });
+      reader.onerror = reject;
+      reader.readAsText(f);
+    });
+  }));
+}
+
+// ============ URL Extraction ============
+// 终止符包含 ASCII 与全角括号/标点，**不含点号(.) 与 问号(?)**——
+// 它们分别是 URL 主机与查询串的必需字符。句末点号、尾随逗号在 extractUrls 后置处理里剥离。
+// 也不含半角冒号(:) 与分号(;)：ghproxy / jsdelivr 这类「代理 + 嵌套 URL」的链接
+// （如 https://ghproxy.net/https://raw.githubusercontent.com/a/b.json）会含第二个 "https:"，
+// 若把 : 当终止符，链接会被截断成 https://ghproxy.net/https 而失效。尾随的 : ; 由后置处理剥离。
+const URL_RE = /https?:\/\/[^\s"'<>\[\]{}（）【】《》「」『』()，。、；：!！？,]+/gi;
+function extractUrls(text){
+  const list = text.match(URL_RE) || [];
+  const out = [];
+  for(const raw of list){
+    // 半角 ; : 已不再是终止符（为了让 ghproxy 这类「代理+嵌套 URL」不被截断），
+    // 但这也带来了粘连：多个源用分号/冒号分隔且无空格时会被吞成一条。
+    // 这里按「; 或 : 紧跟 http(s)://」切回多条——https:// 自身的冒号后是 // 不是 http，不会被误切。
+    const parts = raw.split(/[;:](?=https?:\/\/)/i);
+    for(const p of parts) out.push(p);
+  }
+  return out
+    .map(u => u
+      .replace(/^[<（(]+/, '')
+      .replace(/[>）。,，。；;:：!?！？\s.]+$/, ''))
+    .filter(u => /^https?:\/\//.test(u) && u.length > 10)
+    .filter((u, i, arr) => arr.indexOf(u) === i);
+}
+
+// ============ Fetch with CORS-proxy race ============
+// 3 路并发竞跑：直连 + 2 个公开 CORS 代理，谁先成功返回谁。共享 AbortController，
+// 胜出即 cancel 其余，无幽灵请求、无串行等待，最快 ~200ms，最慢 ~6s（超时）。
+// 不再串行回退——公开代理本身不稳定，回退链只增加耗时不增加成功率。
+// 无法获取的 URL 明确报「CORS 限制」并提示用户改用「粘贴 JSON 文本」。
+// ⚠️ 2026-08-30 实测重写。旧实现有致命缺陷，是「多源同时全部失效」的根因：
+//  1) 三路代理共享同一个 AbortController，且 catch 分支漏掉 clearTimeout(tid)。
+//     浏览器直连的 CORS 失败几乎总是最先发生（走 catch 分支），它遗留的那颗
+//     4 秒定时器到点会 abort() 掉仍在下载中的代理请求 → 所有源一起超时。
+//  2) 只判「响应非空」就算成功，把代理的 403/429 错误页当成配置吃进去 →
+//     表现为「解析完成，但站点数为 0」。
+//  3) 代理池已整体失效：thingproxy 已死，codetabs 实测需 5~15s，远超旧 4s 超时。
+// 新方案：每路独立超时+finally 必清定时器 / 快慢双波竞跑 / 响应内容校验 / 失败重试一轮。
+const FAST_TIMEOUT = 5000;        // 第一波单路超时（cors.sh 实测 0.4~0.8s，5s 已很宽松）
+const SLOW_TIMEOUT = 9000;        // 第二波单路超时（allorigins/codetabs 实测常年超时，9s 足够判死）
+const STAGE2_DELAY = 800;         // 第一波未果后，追加第二波的等待时间
+// 2026-08-30 实测（并发源数）：
+//  · 并发 2 是上次为压 cors.lol 的 429 而降的，代价是多源总耗时翻倍；
+//  · cors.sh 实测并发 4 连打 4/4 成功、无 429 —— 限流的是 cors.lol，不是所有代理。
+// 故并发回到 4：多源总耗时减半，成功率不受影响。
+const FETCH_POOL   = 4;
+
+// GitHub 系链接 → jsDelivr CDN。
+// jsDelivr 返回 access-control-allow-origin: *，浏览器可直连，
+// 完全绕开 CORS 代理——而公开代理正大面积 429/403/超时，这条路是当前最可靠的。
+// 覆盖 raw.githubusercontent.com / github.com blob / github.com raw 三种写法。
+const CDN_HOSTS = ['https://cdn.jsdelivr.net', 'https://gcore.jsdelivr.net'];
+function toCdnUrl(url){
+  let u = '', r = '', b = '', p = '';   // user / repo / branch / path
+  let m;
+  // 「refs/heads/分支」写法必须先匹配：否则 refs 会被误当成分支名，
+  // jsDelivr 会得到 @refs/heads/... 这类非法分支而 404。
+  if((m = url.match(/^https?:\/\/raw\.githubusercontent\.com\/([^/]+)\/([^/]+)\/refs\/heads\/([^/]+)\/(.+)$/)) ||
+     (m = url.match(/^https?:\/\/github\.com\/([^/]+)\/([^/]+)\/(?:blob|raw)\/refs\/heads\/([^/]+)\/(.+)$/))){
+    [u, r, b, p] = [m[1], m[2], m[3], m[4]];
+  } else if((m = url.match(/^https?:\/\/raw\.githubusercontent\.com\/([^/]+)\/([^/]+)\/([^/]+)\/(.+)$/)) ||
+            (m = url.match(/^https?:\/\/github\.com\/([^/]+)\/([^/]+)\/(?:blob|raw)\/([^/]+)\/(.+)$/))){
+    [u, r, b, p] = [m[1], m[2], m[3], m[4]];
+  } else {
+    return null;
+  }
+  return CDN_HOSTS.map(h => h + '/gh/' + u + '/' + r + '@' + b + '/' + p);
+}
+
+// 顺序 = 优先级。2026-08-30 实测（模拟浏览器 CORS、直连必失败）：
+//  · cors.sh   —— 唯一稳定可用的公开代理：ACAO:*、支持预检、连打 6/6 成功(0.4~0.8s)、并发 4 无 429。放首位。
+//  · 直连      —— 部分源站自带 ACAO，命中则零代理开销，次优先。
+//  · cors.lol  —— 常驻 429，留作补充，命中即赚。
+const PROXY_FAST = [
+  { name: 'cors.sh',  build: u => 'https://proxy.cors.sh/' + u },
+  { name: '直连',     build: u => u },
+  { name: 'cors.lol', build: u => 'https://api.cors.lol/?url=' + encodeURIComponent(u) }
+];
+// 第二波兜底：实测常年 403/超时/假成功，只在第一波全灭时才动用。
+//  · cors.eu.org 偶发 429 但曾返回完整内容，值得保留；
+//  · whateverorigin 会返回 HTTP200 的 HTML 页（非配置），靠 looksLikeConfig 拦掉。
+const PROXY_SLOW = [
+  { name: 'cors.eu.org',    build: u => 'https://cors.eu.org/' + u },
+  { name: 'allorigins',     build: u => 'https://api.allorigins.win/raw?url=' + encodeURIComponent(u) },
+  { name: 'codetabs',       build: u => 'https://api.codetabs.com/v1/proxy/?quest=' + encodeURIComponent(u) },
+  { name: 'whateverorigin', build: u => 'https://www.whateverorigin.org/get?url=' + encodeURIComponent(u) }
+];
+
+// 剥掉 whateverorigin 之类「{contents:"..."}」的包裹层，还原原始文本
+function unwrapProxy(text){
+  let t = (text || '').trim();
+  if(t.charCodeAt(0) === 0xFEFF) t = t.slice(1);
+  if(!/^[{[]/.test(t)) return t;
+  let o; try { o = JSON.parse(t); } catch(e){ return t; }
+  if(o && typeof o === 'object' && !Array.isArray(o) && typeof o.contents === 'string') return o.contents;
+  return t;
+}
+
+// 校验响应是否真像一份 TVBox 配置，过滤代理的 403/429 错误页
+function looksLikeConfig(text){
+  const t = (text || '').trim();
+  if(!t || t.length < 20) return false;
+  const p = tryParseJSON(t);
+  if(!p.parsed){
+    // 非严格 JSON（带注释 / JSONP）：至少要有明显的配置字段特征
+    return /["']?\s*(sites|lives|parses|urls)\s*["']?\s*:/.test(t);
+  }
+  const o = p.obj;
+  if(Array.isArray(o)) return o.length > 0;
+  if(o && typeof o === 'object'){
+    return !!(o.sites || o.lives || o.parses || o.urls || o.rules);
+  }
+  return false;
+}
+
+// 分级竞跑（staged race）：多波候选按时间依次加入，谁先返回「有效配置」谁胜出。
+//  · t=0          发射第一波（CDN / 快代理）
+//  · t=STAGE2_DELAY 仍未成功才追加第二波（慢代理），避免每次都白白消耗慢代理额度
+//  · 每路独立 controller、独立超时，定时器在 finally 中必定清除，绝不误伤它路
+//
+// 为什么取代旧的「快波→sleep 600→慢波→sleep 1200→重试快波」四级串行：
+// 实测四级串行单个源最坏要 5s+0.6s+12s+1.2s+12s ≈ 31s，多源叠加后总耗时 32s 且大多以失败告终。
+// 分级竞跑把最坏耗时压到 max(5s, 0.8s+9s) ≈ 10s，且省掉了两处纯等待的 sleep。
+function stagedRace(waves, url, timeouts){
+  const ctrls = [];
+  let settled = false;
+  let finish;
+  const done = new Promise(res => { finish = res; });
+  let live = 0;       // 在途任务数
+  let launched = 0;   // 已发射任务数
+  const total = waves.reduce((n, w) => n + w.length, 0);
+
+  function launch(list, timeout){
+    list.forEach(p => {
+      const ctrl = new AbortController();
+      ctrls.push(ctrl);
+      live++; launched++;
+      (async () => {
+        let tid = null;
+        try{
+          tid = setTimeout(() => { try { ctrl.abort(); } catch(e){} }, timeout);
+          const res = await fetch(p.build(url), { signal: ctrl.signal, redirect: 'follow' });
+          if(!res.ok) return null;
+          const raw = await res.text();
+          if(!raw || !raw.length) return null;
+          const text = unwrapProxy(raw);
+          if(!looksLikeConfig(text)) return null;
+          return { text, proxyName: p.name };
+        } catch(e){
+          return null;
+        } finally {
+          if(tid) clearTimeout(tid);
+        }
+      })()
+        .then(res => {
+          if(res && !settled){
+            settled = true;
+            ctrls.forEach(c => { try { c.abort(); } catch(e){} });   // 胜出即取消其余在途请求
+            finish(res);
+          }
+        })
+        .catch(() => {})
+        .then(() => {
+          live--;
+          // 所有波都已发射完毕且全部落空 → 判定失败
+          if(launched === total && live === 0 && !settled) finish(null);
+        });
+    });
+  }
+
+  const delays = [0, STAGE2_DELAY];
+  waves.forEach((w, i) => {
+    const d = delays[i] || 0;
+    if(d === 0) launch(w, timeouts[i]);
+    else setTimeout(() => { if(!settled) launch(w, timeouts[i]); }, d);
+  });
+
+  return done;
+}
+
+async function fetchUrl(url){
+  const custom = ($('#proxyInput').value || '').trim();
+
+  // 第一波：jsDelivr CDN（GitHub 源自带 ACAO:*，完全不消耗代理额度）+ 自定义代理 + 快代理
+  const wave1 = [];
+  const cdns = toCdnUrl(url);
+  if(cdns) cdns.forEach(u => wave1.push({ name: 'jsDelivr CDN', build: () => u }));
+  if(custom) wave1.unshift({ name: '自定义代理', build: u => custom + encodeURIComponent(u) });
+  PROXY_FAST.forEach(p => wave1.push(p));
+
+  const r = await stagedRace([wave1, PROXY_SLOW], url, [FAST_TIMEOUT, SLOW_TIMEOUT]);
+  if(r) return r;
+  throw new Error('CORS 限制（浏览器无法访问该链接，请改用「粘贴json文本」）');
+}
+
+// ============ Parse Content ============
+// 多级容错：严格解析 → 去尾随逗号 → 剥离 JSONP/外层包裹提取首个 {}/[] 块。
+// 注意：不盲目删除 // 注释（会破坏 api 字段里的 http://），仅做结构性修复。
+function safeParse(s){
+  try { return JSON.parse(s); } catch(e){ return undefined; }
+}
+// 「字符串感知」的 JSON 净化。TVBox 配置是人工/工具拼出来的，常见两类非法写法：
+//  ① // 与 /* */ 注释（//音乐mtv、//磁力资源区 等）——不处理整份解析失败；
+//  ② 字符串里出现未转义的真实换行/制表等控制字符（嵌套 JSON 生成时漏转义）。
+// 关键在于必须区分「字符串内」与「结构层」：只净化字符串内的内容，
+// 否则 api / spider 里的 http:// 会被拦腰截断，配置反而彻底损坏。
+function sanitizeJsonText(s){
+  let out = '';
+  let inStr = false, esc = false;
+  for(let i = 0; i < s.length; i++){
+    const c = s[i], n = s[i + 1], code = s.charCodeAt(i);
+    if(inStr){
+      if(code === 0x0A){ out += '\\n'; continue; }        // 真实换行 → 转义，保住字符串完整
+      if(code === 0x0D){ out += '\\r'; continue; }
+      if(code === 0x09){ out += '\\t'; continue; }
+      if(code < 0x20){ out += '\\u' + code.toString(16).padStart(4, '0'); continue; }
+      out += c;
+      if(esc) esc = false;
+      else if(c === '\\') esc = true;
+      else if(c === '"') inStr = false;
+      continue;
+    }
+    if(c === '"'){ inStr = true; out += c; continue; }
+    if(c === '/' && n === '/'){                 // 行注释：丢弃到行尾，保留换行以免粘连下一行
+      while(i < s.length && s[i] !== '\n') i++;
+      if(i < s.length) out += '\n';
+      continue;
+    }
+    if(c === '/' && n === '*'){                 // 块注释
+      i += 2;
+      while(i < s.length && !(s[i] === '*' && s[i + 1] === '/')) i++;
+      i++;
+      continue;
+    }
+    out += c;
+  }
+  return out;
+}
+function tryParseJSON(text){
+  let cleaned = (text || '').trim();
+  if(cleaned.charCodeAt(0) === 0xFEFF) cleaned = cleaned.slice(1); // BOM
+  let obj = safeParse(cleaned);
+  if(obj !== undefined) return { parsed: true, obj };
+  // 严格解析失败 → 先净化（注释 + 字符串内控制字符），再去尾随逗号，最后截断包裹层。
+  // 顺序不能反：注释与控制字符会掩盖真正的结构，先清干净后面的修复才奏效。
+  cleaned = sanitizeJsonText(cleaned);
+  obj = safeParse(cleaned);
+  if(obj !== undefined) return { parsed: true, obj };
+  const noTrail = cleaned.replace(/,(\s*[}\]])/g, '$1');
+  obj = safeParse(noTrail);
+  if(obj !== undefined) return { parsed: true, obj };
+  const start = cleaned.search(/[[{]/);
+  if(start >= 0){
+    const open = cleaned[start];
+    const close = open === '{' ? '}' : ']';
+    const end = cleaned.lastIndexOf(close);
+    if(end > start){
+      const slice = cleaned.slice(start, end + 1).replace(/,(\s*[}\]])/g, '$1');
+      obj = safeParse(slice);
+      if(obj !== undefined) return { parsed: true, obj };
+    }
+  }
+  return { parsed: false, error: '非 JSON 文本' };
+}
+
+// TVBox known field patterns
+const KNOWN_FIELDS = {
+  sites: ['sites','video_sites','channel','vod','channels','spider','spider_list'],
+  lives: ['lives','live','live_channels','live2','live_list'],
+  parses: ['parses','parse','parse_list','spider_parse'],
+  wallpapers: ['wallpapers','wallpaper','img','imgs','images'],
+  rules: ['rules','rule','filter','filters']
+};
+
+function normalizeSite(item){
+  if(!item || typeof item !== 'object') return null;
+  const name = item.name || item.title || item.title_name || '未知';
+  const key = item.key || item.id || item.siteKey || item.name || 'unknown';
+  let api = item.api || item.url || item.base_url || item.baseUrl || item.ext || '';
+  // type 自动推断：缺省时根据 api 特征补全（TVBox 对 type 很敏感，缺失会导致站点不加载）
+  let type = item.type;
+  if(type == null){
+    if(typeof api === 'string'){
+      const a = api.trim();
+      if(/^py_/i.test(a) || /\.py$/i.test(a)) type = 4;
+      else if(/\.js$/i.test(a) || /^js_/i.test(a) || /^csp_/i.test(a)) type = 3;
+      else type = 3;
+    } else {
+      type = 3;
+    }
+  }
+  // 站点级 api / jar / ext 若为相对路径，按来源地址解析为绝对 URL
+  //（避免 TVBox 把 "./py/xxx.py" 当成本地相对路径而 404）
+  if(currentBaseUrl){
+    if(typeof api === 'string' && !/^https?:\/\//i.test(api.trim()) && !/^\s*csp_/i.test(api) && !/^\s*js_/i.test(api) && !/^\s*py_/i.test(api)){
+      try { api = new URL(api, currentBaseUrl).href; item.api = api; } catch(e){}
+    }
+    if(typeof item.jar === 'string' && !/^https?:\/\//i.test(item.jar)){
+      try { item.jar = new URL(item.jar, currentBaseUrl).href; } catch(e){}
+    }
+    if(typeof item.ext === 'string' && !/^https?:\/\//i.test(item.ext.trim()) && !/^\s*[\[{]/.test(item.ext.trim())){
+      try { item.ext = new URL(item.ext, currentBaseUrl).href; } catch(e){}
+    }
+  }
+  return { key, name, api, type, raw: item };
+}
+
+function normalizeLive(item){
+  if(!item || typeof item !== 'object') return null;
+  return {
+    name: item.name || item.title || '未知',
+    url: item.url || item.channel || item.uri || '',
+    type: item.type || 0,
+    raw: item
+  };
+}
+
+function normalizeParse(item){
+  if(!item || typeof item !== 'object') return null;
+  return {
+    name: item.name || item.title || '未知',
+    url: item.url || item.api || item.addr || '',
+    type: item.type || 0,
+    raw: item
+  };
+}
+
+function extractNodes(obj){
+  const result = { sites: [], lives: [], parses: [], wallpapers: [], rules: [] };
+  if(typeof obj !== 'object' || obj === null) return result;
+
+  const flat = flattenTVBox(obj);
+  for(const [cat, keys] of Object.entries(KNOWN_FIELDS)){
+    for(const k of keys){
+      if(flat[k]){
+        const arr = Array.isArray(flat[k]) ? flat[k] : [flat[k]];
+        arr.forEach(item => {
+          let n;
+          if(cat === 'sites') n = normalizeSite(item);
+          else if(cat === 'lives') n = normalizeLive(item);
+          else if(cat === 'parses') n = normalizeParse(item);
+          else n = item;
+          if(n) result[cat].push(n);
+        });
+      }
+    }
+  }
+  return result;
+}
+
+// Global config fields — NOT per-node, but at top level of TVBox config.
+// These are required for search/playback to work (esp. spider JAR).
+// NOTE: node arrays (sites/lives/parses/rules/wallpapers) are intentionally
+// excluded here — they are handled by extractNodes / buildExportJSON separately.
+const GLOBAL_KEYS = ['spider','logo','wallpaper','danmaku','ijk','player','flags','ua','doh','ad','sponsor','cate','categories','dcraw','dcraw_url','quickSearch','searchable','filter'];
+
+// 把 spider 字符串里的相对路径解析成绝对 URL（基于来源地址）。
+// TVBox 主配置里 spider 必须是可达的绝对 URL，否则远程加载会报 “jar load err”。
+// 形如 "./OS.jar" 或 "jar/x.jar" 的相对路径，若已知来源 base 则解析为绝对 URL；
+// 若已是绝对 URL 则原样返回；若无 base 则原样返回（交给导出时的兼容模式处理）。
+function resolveSpiderPath(v, base){
+  if(typeof v !== 'string') return v;
+  const m = v.match(/^([\s\S]*?)(;md5;[^;]*)?$/);
+  const body = m[1], suffix = m[2] || '';
+  if(/^https?:\/\//i.test(body)) return v;          // 已是绝对 URL
+  if(!base) return v;                                // 无来源地址，无法解析
+  try { return new URL(body, base).href + suffix; } catch(e){ return v; }
+}
+
+// 默认「兜底 spider」：使用用户 123.json 里实测可加载的 fish 引擎 jar（HTTP 200、3.7MB 有效 ZIP/JAR，
+// 最终 CDN 为 img.pagehost.cn）。该地址会 302 跳转，TVBox 加载时会自动跟随。
+// 重要说明：TVBox 源的 spider jar 都是会变的，没有「永远可用」的硬编码地址；如果未来这个默认也报 jar load err，
+// 请到解析器里把它换成你当前能用的 spider 绝对 URL（通常可从一个能正常加载的 TVBox 配置里复制）。
+const FALLBACK_SPIDER = 'https://tc-new.z.wiki/autoupload/k2fxc/20260821/n5ke/fish08211330.jar;md5;ba25eb6bad40a9352017438a47865a10';
+
+// ============ 自动探测可用 spider（用户零操作） ============
+// TVBox 生态里没有“永久可用”的硬编码 spider；同一个 jar 今天能用、明天可能 403/404。
+// 因此解析器打开时会自动并发探测一组候选 spider，把第一个能下载且文件头正确的 jar 地址
+// 设为默认值，并缓存到 localStorage。用户解析不同源时，源自带的 spider 也会加入候选池
+// 一起探测，实现“自动识别并更新可用 spider”。
+const SPIDER_PROBE_TIMEOUT = 8000;
+const SPIDER_CANDIDATE_STORE = 'tvbox_spider_candidates';
+const SPIDER_LAST_OK_STORE = 'tvbox_last_working_spider';
+
+// 初始候选池：包含 fish jar（123.json 实测可用）及 fty.jar 的多个镜像。
+// 注意：这些地址都会随时间失效，候选池的作用是让解析器在失效后能自动换到另一个可用的。
+function getSpiderCandidates(){
+  const defaults = [
+    'https://tc-new.z.wiki/autoupload/k2fxc/20260821/n5ke/fish08211330.jar;md5;ba25eb6bad40a9352017438a47865a10',
+    'https://ghproxy.cc/https://raw.githubusercontent.com/supermeguo/BoxRes/main/Myuse/lib/fty.jar',
+    'https://mirror.ghproxy.com/https://raw.githubusercontent.com/supermeguo/BoxRes/main/Myuse/lib/fty.jar',
+    'https://ghproxy.net/https://raw.githubusercontent.com/supermeguo/BoxRes/main/Myuse/lib/fty.jar',
+    'https://github.moeyy.xyz/https://raw.githubusercontent.com/supermeguo/BoxRes/main/Myuse/lib/fty.jar',
+    'https://raw.gitmirror.com/supermeguo/BoxRes/main/Myuse/lib/fty.jar',
+    'https://d.kstore.dev/download/14782/jar/pg_upgraded.jar'
+  ];
+  let history = [];
+  try { const s = localStorage.getItem(SPIDER_CANDIDATE_STORE); if(s) history = JSON.parse(s); } catch(e){}
+  if(!Array.isArray(history)) history = [];
+  return [...new Set([...history.filter(u => typeof u === 'string' && /^https?:\/\//i.test(u)), ...defaults])];
+}
+
+// 把一个新 spider 加入候选历史池（去重，最多保留 50 个）
+function rememberSpiderCandidate(url){
+  if(typeof url !== 'string' || !url.trim()) return;
+  const u = url.trim();
+  if(!/^https?:\/\//i.test(u)) return;
+  const pool = getSpiderCandidates();
+  if(pool.includes(u)) return;
+  pool.unshift(u);
+  try { localStorage.setItem(SPIDER_CANDIDATE_STORE, JSON.stringify(pool.slice(0, 50))); } catch(e){}
+}
+
+// 把探测到的可用 spider 写到输入框和缓存
+function setWorkingSpider(url){
+  const input = $('#spiderOverrideUrl');
+  if(input && url) input.value = url;
+  try { localStorage.setItem(SPIDER_LAST_OK_STORE, String(url)); } catch(e){}
+}
+
+// 恢复上次探测成功的 spider 到输入框
+function restoreWorkingSpider(){
+  try {
+    const last = localStorage.getItem(SPIDER_LAST_OK_STORE);
+    if(last) { const input = $('#spiderOverrideUrl'); if(input) input.value = last; }
+  } catch(e){}
+}
+
+// 探测单个 spider：并发代理，流式只读前 4 字节判断 jar/dex 魔数后立刻 cancel，不下载完整文件。
+//（旧实现 await res.blob() 会把整个 jar 拉完再判断，多候选串行探测时极慢。）
+async function probeOneSpider(url){
+  const list = PROXY_FAST.concat(PROXY_SLOW);
+  const ctrls = list.map(() => new AbortController());
+  let settled = false;
+  const tasks = list.map((p, i) => (async () => {
+    const ctrl = ctrls[i];
+    let tid = null;
+    try{
+      tid = setTimeout(() => { try { ctrl.abort(); } catch(e){} }, SPIDER_PROBE_TIMEOUT);
+      const res = await fetch(p.build(url), { signal: ctrl.signal, redirect: 'follow', mode: 'cors' });
+      if(!res.ok) return null;
+      const ct = (res.headers.get('content-type') || '').toLowerCase();
+      // 过滤掉代理返回的 html/json 错误页
+      if(ct.includes('text/html') || ct.includes('application/json')) return null;
+      const len = parseInt(res.headers.get('content-length') || '0', 10);
+      // 至少 50KB 才像 jar（避免误把 404 小页面当 jar）；无 content-length 时用魔数兜底判定
+      if(len > 0 && len < 50 * 1024) return null;
+      if(!res.body) return null;
+      // 流式取前 4 字节后立即取消，避免下载整个 jar
+      const reader = res.body.getReader();
+      const head = new Uint8Array(4);
+      let n = 0;
+      try{
+        while(n < 4){
+          const { done, value } = await reader.read();
+          if(done) break;
+          for(let k = 0; k < value.length && n < 4; k++) head[n++] = value[k];
+        }
+      } finally { try { await reader.cancel(); } catch(e){} }
+      if(n < 4) return null;
+      const zipSig = head[0] === 0x50 && head[1] === 0x4B && head[2] === 0x03 && head[3] === 0x04; // ZIP/JAR
+      const dexSig = head[0] === 0x64 && head[1] === 0x65 && head[2] === 0x78 && head[3] === 0x0A; // Android DEX
+      if(!zipSig && !dexSig) return null;
+      return { url, size: len || 0, proxy: p.name };
+    } catch(e){ return null; }
+    finally { if(tid) clearTimeout(tid); }
+  })());
+
+  return new Promise((resolve) => {
+    let left = tasks.length;
+    tasks.forEach(t => {
+      t.then(res => {
+        if(res && !settled){
+          settled = true;
+          ctrls.forEach(c => { try { c.abort(); } catch(e){} });
+          resolve(res);
+        }
+      }).catch(() => {}).then(() => {
+        left--;
+        if(left === 0 && !settled) resolve(null);
+      });
+    });
+  });
+}
+
+// 自动探测候选 spider，串行候选、并发代理，成功后立即更新默认值和缓存
+async function autoProbeSpiders(extraCandidates){
+  const statusEl = $('#spiderProbeStatus');
+  if(statusEl) statusEl.textContent = '正在自动探测可用 spider...';
+  const extras = Array.isArray(extraCandidates) ? extraCandidates.filter(u => typeof u === 'string' && /^https?:\/\//i.test(u)) : [];
+  const pool = [...new Set([...extras, ...getSpiderCandidates()])];
+  let winner = null;
+  for(const url of pool){
+    const res = await probeOneSpider(url);
+    if(res){ winner = res; break; }
+  }
+  if(winner){
+    setWorkingSpider(winner.url);
+    rememberSpiderCandidate(winner.url);
+    if(statusEl) statusEl.textContent = `✅ 已自动选用可用 spider（${winner.proxy} / ${Math.round(winner.size/1024)}KB）`;
+    return winner.url;
+  } else {
+    if(statusEl) statusEl.textContent = '⚠️ 自动探测未找到可用 spider，仍使用默认值';
+    return null;
+  }
+}
+
+// 正向白名单：只有「明确稳定、长期可用」的基础设施主机才被信任为 spider 托管域。
+// 思路转变（关键教训）：合并「多个作者的源」时，源 spider 主机五花八门（裸公网 IP、随机域名、
+// punycode 国际化域名等），用「黑名单枚举失效域」永远列不全 → 反复 jar load err。
+// 因此改为「正向白名单 + 默认统一可信 spider」：不在白名单内 → 一律视为不可信，不跟随。
+// 白名单只收录公认长期稳定的托管基础设施（GitHub raw / jsDelivr / 少量知名 ghproxy 镜像 / 知名 TVBox 资源站）。
+const TRUSTED_SPIDER_HOSTS = [
+  'raw.githubusercontent.com', 'objects.githubusercontent.com',
+  'cdn.jsdelivr.net', 'jsdelivr.net', 'fastly.jsdelivr.net', 'gcore.jsdelivr.net', 'testingcf.jsdelivr.net', 'mirror.ghproxy.com',
+  'ghproxy.net', 'ghproxy.com', 'gh.api.99988866.xyz', 'ghproxy.188425.xyz', 'ghproxyh.best',
+  'raw.gitmirror.com', 'github.moeyy.xyz', 'github.bib0.com',
+  'tc-new.z.wiki', 'z.wiki',
+  'd.kstore.dev', 'kstore.dev', 'kstore.vip', 'kstore.run'
+];
+// 判断 spider 地址是否「可信」（可跟随源）。只要不满足下面任一条件即不可信 → 不跟随、改用默认 spider：
+//   • 必须是 HTTPS（明文 http 一律不可信，易被拦截且多是临时地址）
+//   • 主机不能是裸 IP（IPv4/IPv6 字面量）—— TVBox 源的死链 spider 多为临时 VPS 裸 IP（如 112.27.235.94）
+//   • 不能是 punycode 国际化域名（xn-- 开头，伪装性强、多为临时失效域）
+//   • 主机必须在 TRUSTED_SPIDER_HOSTS 白名单内
+function isSpiderTrusted(v){
+  if(typeof v !== 'string' || !v.trim()) return false;          // 空 / 相对路径
+  const m = v.match(/^([\s\S]*?)(;md5;[^;]*)?$/);
+  const body = (m ? m[1] : v).trim();
+  if(!/^https:\/\//i.test(body)) return false;                  // 必须 HTTPS
+  let u; try { u = new URL(body); } catch(e){ return false; }
+  const h = u.hostname.toLowerCase();
+  if(/^\d{1,3}(\.\d{1,3}){3}$/.test(h)) return false;          // 裸公网 IPv4 不可信
+  if(h.includes(':')) return false;                            // IPv6 不可信
+  if(h.includes('xn--')) return false;                         // punycode 国际化域名不可信
+  return TRUSTED_SPIDER_HOSTS.some(t => h === t || h.endsWith('.' + t));
+}
+
+// 语法级“可跟随”判定（用于「单源跟随源」决策）：
+// TVBox 生态里大量正常 spider 使用：HTTP、裸 IP、非 .jar 扩展名（.php/.jpg/.txt）、动态 302（需 okhttp UA）等。
+// 用浏览器 fetch 探测这些地址往往失败，但 TVBox 用 okhttp UA 加载时却能正常取到 jar。
+// 因此「单源」场景下，只要源 spider 是 http/https 绝对地址就跟随它——这是让导出配置与源保持行为一致的唯一可靠方式。
+// 只拦截：无 scheme 的相对路径（TVBox 远程加载必死）、非 http(s) 协议。
+function isSpiderSafe(v){
+  if(typeof v !== 'string' || !v.trim()) return false;          // 空
+  const body = v.split(';')[0].trim();
+  if(!/^https?:\/\//i.test(body)) return false;                 // 必须是 http/https 绝对地址（相对路径 / ftp / file 等不行）
+  try { new URL(body); } catch(e){ return false; }
+  return true;
+}
+
+// 取「上次自动探测成功」的 spider（localStorage 缓存）；没有则返回 null。
+// 多源合并 / 源 spider 不安全时，统一回退到它（它会随自动探测自动更新为当前可用地址）。
+function lastWorkingSpider(){
+  try {
+    const v = localStorage.getItem(SPIDER_LAST_OK_STORE);
+    if(v && /^https?:\/\//i.test(v)) return v;
+  } catch(e){}
+  return null;
+}
+
+// 判断一个站点「是否依赖全局 spider 才能解析」：
+//   - 站点自带 jar → 不依赖全局 spider（它有自己的 jar）
+//   - type 3/4 且 api 是类名（非 URL：不含 scheme、不含斜杠、不含点）→ 需要 spider 里的 csp_/js_/py_ 类
+//   - 其余（api 是 http(s) URL 或 ./相对路径 或 .py/.js 路径）由 TVBox 直接拉取，不依赖全局 spider
+// 用途：统计每个源的 spider 真正需要覆盖多少站点，从而在多源合并时选出“覆盖面最广”的 spider。
+function dependsOnSpider(site){
+  if(!site || typeof site !== 'object') return false;
+  // 归一化对象把 jar 放在 raw 上，这里兼容两者；有自己 jar 的站点 → 不依赖全局 spider
+  const jar = site.jar || (site.raw && site.raw.jar);
+  if(typeof jar === 'string' && jar.trim()) return false;
+  const api = (site.api || site.url || '').toString();
+  if(!api) return false;
+  const t = site.type;
+  if(t !== 3 && t !== '3' && t !== 4 && t !== '4') return false;
+  if(/:\/\//.test(api)) return false;          // 是 URL → 直接拉取，不走 spider 类
+  if(api.includes('/')) return false;          // 是路径（如 ./py/apple.py）→ 直接拉取
+  if(api.includes('.')) return false;          // 含点（文件/路径）→ 直接拉取
+  return true;                                 // 形如 csp_Guazi / js_Bili / py_Douban 的类名
+}
+
+// 多源合并时，自动选出「覆盖面最广」的 spider。
+// 思路：统计每个源自带的 spider，以及该源中有多少站点真正依赖全局 spider（dependsOnSpider）。
+// 选「覆盖依赖站点最多」的那个 spider 作为全局 spider——它能让最多的站点正常解析。
+// 评分：dependent 站点数 ×1000 + 总站点数；若候选恰是「上次实测可用 spider」则大幅加权（已知可用优先）。
+// 注意：浏览器内无法可靠探测 jar 是否可达（UA/302/CORS），因此“覆盖面”只依据元数据，不靠在线探测。
+// 若一个 spider 实际是死链，那是源本身的问题，解析器无法让死链接复活（仅能靠用户/自动探测换源）。
+function chooseBestSpider(){
+  const last = lastWorkingSpider();
+  const cands = {};   // url -> { dependent, total, sources:Set }
+  for(const rec of sourceSpiders){
+    if(!rec.spider || !isSpiderSafe(rec.spider)) continue;   // 不安全的 spider 不纳入候选
+    const c = cands[rec.spider] || (cands[rec.spider] = { dependent: 0, total: 0, sources: new Set() });
+    c.dependent += rec.dependent || 0;
+    c.total += rec.total || 0;
+    c.sources.add(rec.name);
+  }
+  const keys = Object.keys(cands);
+  if(keys.length === 0) return null;
+  let best = null, bestScore = -1, bestInfo = null;
+  for(const k of keys){
+    let score = cands[k].dependent * 1000 + cands[k].total;
+    if(k === last) score += 500000;            // 已知可用 spider 优先
+    if(score > bestScore){ bestScore = score; best = k; bestInfo = cands[k]; }
+  }
+  if(best) chosenSpiderMeta = { url: best, dependent: bestInfo.dependent, sourcesCount: bestInfo.sources.size, reason: (best === last ? '上次实测可用' : '覆盖依赖站点最多') };
+  return best;
+}
+
+// 从配置内容中推断来源 base URL（用于“粘贴 JSON 文本”模式，没有 currentBaseUrl 时）
+// 策略：从 spider/logo/wallpaper/站点 api/站点 ext 等字段里找第一个绝对 URL，取其 origin 作为 base
+function inferBaseUrl(obj){
+  if(currentBaseUrl) return currentBaseUrl;
+  if(typeof obj !== 'object' || obj === null) return null;
+  const flat = flattenTVBox(obj);
+  // 优先全局字段：只用「功能型」字段推断来源地址（spider/api/jar/ext 才是与配置同源的 jar/脚本地址）。
+  // 注意：绝不把 logo / wallpaper 等「媒体资源 URL」当作来源地址——它们常托管在第三方 CDN 甚至已失效域名上，
+  // 一旦误当成 base，会把相对路径 spider（如 ./lib/fm.jar）错拼到错误/死链主机，导致 TVBox 报 jar load err。
+  for(const k of ['spider','ua','dcraw_url','dcraw']){
+    const v = flat[k];
+    if(typeof v === 'string' && v.trim()){
+      try {
+        const u = new URL(v.split(';')[0].trim());
+        if(/^https?:$/i.test(u.protocol)) return u.origin + '/';
+      } catch(e){}
+    }
+  }
+  // 其次从站点数组里找
+  const sites = flat.sites;
+  if(Array.isArray(sites)){
+    for(const s of sites){
+      if(!s || typeof s !== 'object') continue;
+      for(const f of ['api','jar','ext']){
+        const v = s[f];
+        if(typeof v === 'string' && v.trim()){
+          try {
+            const u = new URL(v.split(';')[0].trim());
+            if(/^https?:$/i.test(u.protocol)) return u.origin + '/';
+          } catch(e){}
+        }
+      }
+    }
+  }
+  return null;
+}
+
+function extractGlobalFields(obj){
+  const result = {};
+  if(typeof obj !== 'object' || obj === null) return result;
+  const flat = flattenTVBox(obj);
+  for(const k of GLOBAL_KEYS){
+    if(flat[k] !== undefined){
+      if((k === 'spider' || k === 'logo' || k === 'wallpaper' || k === 'dcraw_url') && typeof flat[k] === 'string'){
+        result[k] = resolveSpiderPath(flat[k], currentBaseUrl); // 相对路径按来源地址解析为绝对 URL
+      } else {
+        result[k] = flat[k];
+      }
+    }
+  }
+  return result;
+}
+
+function flattenTVBox(obj, depth=0){
+  if(depth > 3 || !obj || typeof obj !== 'object') return obj;
+  const entries = Object.entries(obj);
+  // Check if any key is a known TVBox field
+  const hasKnown = entries.some(([k]) => Object.values(KNOWN_FIELDS).flat().includes(k));
+  if(hasKnown) return obj;
+  // Check if it's an array
+  if(Array.isArray(obj)) return obj;
+  // Try each value
+  for(const [k, v] of entries){
+    if(typeof v === 'object' && v !== null){
+      const r = flattenTVBox(v, depth+1);
+      if(r && typeof r === 'object' && Object.values(KNOWN_FIELDS).flat().some(fk => r[fk])) return r;
+    }
+  }
+  return obj;
+}
+
+// Dedup helpers
+function dedupSites(list){
+  const seen = new Set();
+  return list.filter(s => {
+    const k = s.key + '|' + s.api;
+    if(seen.has(k)) return false;
+    seen.add(k);
+    return true;
+  });
+}
+function dedupSimple(list){
+  const seen = new Set();
+  return list.filter(s => {
+    const k = JSON.stringify(s);
+    if(seen.has(k)) return false;
+    seen.add(k);
+    return true;
+  });
+}
+
+// ============ Concurrency pool ============
+async function runPool(items, limit, fn){
+  let i = 0;
+  async function worker(){
+    while(i < items.length){
+      const idx = i++;
+      await fn(items[idx]);
+    }
+  }
+  await Promise.all(Array.from({ length: Math.min(limit, items.length) }, worker));
+}
+
+// ============ Main Parse ============
+async function parseAll(){
+  allNodes = { sites: [], lives: [], parses: [], wallpapers: [], rules: [] };
+  globalFields = {};
+  selections = { sites: new Set(), lives: new Set(), parses: new Set(), wallpapers: new Set(), rules: new Set() };
+  fetchLog = [];
+  sourceCount = 0;
+  sourceSpiders = [];
+  chosenSpiderMeta = null;
+  spiderCoverageFlag = false;
+
+  const sources = await gatherInputs();
+  if(!sources || sources.length === 0){
+    toast('❌ 请先输入内容或选择文件');
+    return;
+  }
+
+  // Build work units based on each source's mode.
+  //  - 'url'   (URL tab): extract links from pasted text -> fetch -> parse
+  //  - 'json'  (text tab): treat pasted content as raw JSON -> parse directly
+  //  - 'auto'  (uploaded file): JSON first, else extract links
+  const works = [];
+  for(const src of sources){
+    if(src.mode === 'json'){
+      const p = tryParseJSON(src.content);
+      if(p.parsed) works.push({ kind: 'direct', name: src.name, obj: p.obj });
+      else fetchLog.push({ status: 'err', msg: `❌ ${src.name}: JSON 解析失败 — ${p.error}` });
+    } else if(src.mode === 'url'){
+      const urls = extractUrls(src.content);
+      if(urls.length === 0) fetchLog.push({ status: 'warn', msg: `📄 ${src.name}: 未检测到任何链接` });
+      urls.forEach(u => works.push({ kind: 'url', name: src.name, url: u }));
+    } else { // 'auto' — uploaded file
+      const p = tryParseJSON(src.content);
+      if(p.parsed) works.push({ kind: 'direct', name: src.name, obj: p.obj });
+      else {
+        const urls = extractUrls(src.content);
+        if(urls.length) urls.forEach(u => works.push({ kind: 'url', name: src.name, url: u }));
+        else fetchLog.push({ status: 'err', msg: `❌ ${src.name}: 非 JSON 且未检测到链接` });
+      }
+    }
+  }
+  renderLog();
+
+  if(works.length === 0){
+    showProgress(false);
+    toast('❌ 无可解析内容');
+    return;
+  }
+
+  showProgress(true);
+  const total = works.length;
+  let done = 0;
+  updateProgress(0, total);
+
+  // 并发池 FETCH_POOL，兼顾速度与代理稳定性（90 条总耗时 < 20s）
+  await runPool(works, FETCH_POOL, async (w) => {
+    try{
+      if(w.kind === 'direct') handleDirect(w.name, w.obj);
+      else await handleUrl(w.url, w.name);
+    } catch(e){
+      fetchLog.push({ status: 'err', msg: `❌ ${w.url || w.name}: ${e.message}` });
+    }
+    done++;
+    updateProgress(done, total, w);
+    renderLog();
+  });
+
+  // Dedup
+  allNodes.sites = dedupSites(allNodes.sites);
+  allNodes.lives = dedupSimple(allNodes.lives);
+  allNodes.parses = dedupSimple(allNodes.parses);
+  allNodes.wallpapers = dedupSimple(allNodes.wallpapers);
+  allNodes.rules = dedupSimple(allNodes.rules);
+
+  showProgress(false);
+  renderResults();
+  renderStats();
+  renderGlobalPreview();
+  renderExport();
+  toast('✅ 解析完成');
+}
+
+// Parse a JSON object directly (text tab / per-file JSON / fetched body)
+function handleDirect(name, obj){
+  sourceCount++;
+  // 即使粘贴的是纯 JSON 文本（无 URL），也尝试从内容里推断来源 base，
+  // 这样才能把相对路径 spider / api / jar / ext 正确解析为绝对 URL。
+  const inferredBase = inferBaseUrl(obj);
+  const prevBase = currentBaseUrl;
+  if(inferredBase) currentBaseUrl = inferredBase;
+  const nodes = extractNodes(obj);
+  const gf = extractGlobalFields(obj);     // 含已解析为绝对 URL 的 spider
+  try {
+    // ★ 记录每个站点的「来源 spider」（内部标记 __srcSpider，导出时会删除）。
+    // 依据：同一作者的配置，其 spider 必然含有本源站点所需的 csp_/js_/py_ 类。
+    // 这是多源合并能突破「TVBox 只有 1 个全局 spider 槽位」限制的关键——
+    // 导出时把它写成该站点的 per-site jar，TVBox 就会为它单独加载正确的 jar，
+    // 而不是让它去挤那唯一一个全局 spider（实测单个 spider 只能覆盖约 8% 的 csp_ 类）。
+    if(gf.spider){
+      for(const s of (nodes.sites || [])){
+        const raw = (s && s.raw) ? s.raw : s;
+        if(raw && typeof raw === 'object') raw.__srcSpider = gf.spider;
+      }
+    }
+    mergeNodes(nodes);
+    Object.assign(globalFields, gf);
+    // 把源自带的 spider 加入候选池，供后续自动探测
+    if(gf.spider) rememberSpiderCandidate(gf.spider);
+  } finally {
+    currentBaseUrl = prevBase;
+  }
+  // 记录该源 spider 的覆盖统计（用于多源合并时自动选“覆盖面最广”的 spider）
+  const dep = (nodes.sites || []).filter(dependsOnSpider).length;
+  sourceSpiders.push({ name, spider: gf.spider, dependent: dep, total: (nodes.sites || []).length });
+  fetchLog.push({ status: 'ok', msg: `✅ ${name}: +${nodes.sites.length}影视 +${nodes.lives.length}直播 +${nodes.parses.length}解析` });
+}
+
+// Fetch a URL, parse JSON, and recursively probe nested URLs (limited)
+const MAX_SUB = 3;                // 单 URL 最多跟随 3 条子链接，避免爆炸式展开
+const MAX_RESP = 800 * 1024;      // 单响应 > 800KB 跳过子链接提取
+
+async function handleUrl(url, name){
+  const prevBase = currentBaseUrl;
+  currentBaseUrl = url;                 // 记录来源地址，供相对 spider/jar 解析为绝对 URL
+  try {
+  const { text, proxyName } = await fetchUrl(url);
+  const p = tryParseJSON(text);
+  if(p.parsed){
+    handleDirect(name, p.obj);
+    if(proxyName && proxyName !== '直连'){
+      fetchLog.push({ status: 'warn', msg: `ℹ️ ${url}: 已通过代理「${proxyName}」取到` });
+    }
+    return;
+  }
+  if(text.length > MAX_RESP){
+    fetchLog.push({ status: 'warn', msg: `⚠️ ${url}: 响应过大(${Math.round(text.length/1024)}KB)，跳过子链接提取` });
+    return;
+  }
+  const subs = extractUrls(text).slice(0, MAX_SUB);
+  if(subs.length > 0){
+    // 并发而非串行：串行时 3 条子链接最坏要叠加 3 倍超时（~45s）
+    const settled = await Promise.all(subs.map(sub =>
+      fetchUrl(sub).then(r => r).catch(e => {
+        fetchLog.push({ status: 'err', msg: `❌ ${sub}: ${e.message}` });
+        return null;
+      })
+    ));
+    for(const r of settled){
+      if(!r) continue;
+      const sp = tryParseJSON(r.text);
+      if(sp.parsed) handleDirect(name, sp.obj);
+    }
+  } else {
+    fetchLog.push({ status: 'warn', msg: `⚠️ ${url}: 非 JSON 格式` });
+  }
+  } finally {
+    currentBaseUrl = prevBase;          // 还原，避免影响其它源
+  }
+}
+
+function mergeNodes(nodes){
+  for(const cat of ['sites','lives','parses','wallpapers','rules']){
+    if(nodes[cat]) allNodes[cat].push(...nodes[cat]);
+  }
+}
+
+// ============ Progress ============
+function showProgress(show){
+  $('#progressWrap').style.display = show ? 'block' : 'none';
+  if(show){ $('#progressFill').style.width = '0%'; $('#progressLabel').textContent = '正在解析...'; }
+}
+// ============ Progress (rAF batched) ============
+let _rafProgress = null;
+function updateProgress(done, total, current){
+  if(!_rafProgress){
+    _rafProgress = requestAnimationFrame(() => {
+      _rafProgress = null;
+      const pct = Math.round(done / total * 100);
+      $('#progressFill').style.width = pct + '%';
+      $('#progressCount').textContent = `${done}/${total}`;
+      $('#progressLabel').textContent = pct >= 100 ? '✅ 完成' : `正在解析 ${done}/${total}${current ? ' — ' + (current.url || current.name) : ''}`;
+    });
+  }
+}
+
+// ============ Log (rAF batched, 300 cap) ============
+const MAX_LOG = 300;
+let _rafLog = null;
+function renderLog(){
+  if(_rafLog) return;
+  _rafLog = requestAnimationFrame(() => {
+    _rafLog = null;
+    if(fetchLog.length > MAX_LOG) fetchLog.splice(0, fetchLog.length - MAX_LOG);
+    const card = $('#logCard');
+    if(fetchLog.length === 0){ card.style.display = 'none'; return; }
+    card.style.display = 'block';
+    $('#logList').innerHTML = fetchLog.map(l =>
+      `<div class="log-item"><span class="dot dot-${l.status}"></span><span class="msg">${l.msg}</span></div>`
+    ).join('');
+    $('#logList').scrollTop = $('#logList').scrollHeight;
+  });
+}
+
+// ============ Stats ============
+function renderStats(){
+  const bar = $('#statsBar');
+  const counts = {
+    '🎬 影视源': allNodes.sites.length,
+    '📡 直播源': allNodes.lives.length,
+    '🔧 解析器': allNodes.parses.length,
+    '🖼️ 壁纸': allNodes.wallpapers.length,
+    '📏 规则': allNodes.rules.length
+  };
+  const total = Object.values(counts).reduce((a,b)=>a+b,0);
+  if(total === 0){ bar.style.display = 'none'; return; }
+  bar.style.display = 'flex';
+  bar.innerHTML = Object.entries(counts).map(([k,v]) => `<span>${k}: <b>${v}</b></span>`).join('') + `<span>合计: <b>${total}</b></span>`;
+}
+
+// ============ Results Rendering ============
+const CAT_CONFIG = {
+  sites: { label: '影视源', cls: 'res-sites', typeField: 'type' },
+  lives: { label: '直播源', cls: 'res-lives', typeField: null },
+  parses: { label: '解析器', cls: 'res-parses', typeField: 'type' },
+  wallpapers: { label: '壁纸', cls: 'res-wallpapers', typeField: null },
+  rules: { label: '规则', cls: 'res-rules', typeField: null }
+};
+
+function renderResults(){
+  const body = $('#resultsBody');
+  const card = $('#resultsCard');
+  const tabs = $('#resultTabs');
+  const exportCard = $('#exportCard');
+
+  // Determine which categories have data
+  const activeCats = Object.entries(CAT_CONFIG).filter(([k]) => allNodes[k].length > 0);
+  if(activeCats.length === 0){
+    card.style.display = 'none';
+    exportCard.style.display = 'none';
+    return;
+  }
+  card.style.display = 'block';
+  exportCard.style.display = 'block';
+
+  // Update tabs
+  tabs.innerHTML = activeCats.map(([k,v], i) =>
+    `<button class="tab-btn ${i===0?'active':''}" data-tab="res-${k}">${v.label} (${allNodes[k].length})</button>`
+  ).join('');
+
+  body.innerHTML = activeCats.map(([k,v]) => renderSection(k, v)).join('');
+}
+
+function renderSection(cat, config){
+  const items = allNodes[cat];
+  const sel = selections[cat];
+  const sectionId = 'panel-'+cat;
+
+  let rows;
+  if(cat === 'sites'){
+    rows = items.map((s, i) => {
+      const tagCls = s.type === 3 ? 'tag-3' : s.type === 0 ? 'tag-0' : s.type === 1 ? 'tag-1' : s.type === 2 ? 'tag-2' : 'tag-other';
+      const tagLabel = s.type === 3 ? '3' : s.type === 0 ? '0' : s.type === 1 ? '1' : s.type === 2 ? '2' : '其他';
+      return `<tr data-cat="${cat}" data-idx="${i}" class="${sel.has(i)?'selected':''}">
+        <td><input type="checkbox" ${sel.has(i)?'checked':''}></td>
+        <td class="col-key" title="${esc(s.key)}">${esc(s.key)}</td>
+        <td class="col-name" title="${esc(s.name)}">${esc(s.name)}</td>
+        <td class="col-api" title="${esc(s.api)}">${esc(s.api)}</td>
+        <td class="col-type"><span class="col-tag ${tagCls}">${tagLabel}</span></td>
+      </tr>`;
+    }).join('');
+    return `<div class="node-section" id="${sectionId}">
+      <div class="node-section-title"><input type="checkbox" class="sel-all" data-cat="${cat}"> 全选 ${config.label}</div>
+      <div class="node-section-body">
+        <div class="table-wrap"><table><thead><tr><th style="width:40px"></th><th>Key</th><th>名称</th><th>API / URL</th><th>Type</th></tr></thead><tbody>${rows||'<tr><td colspan="5" class="empty-state"><p>无数据</p></td></tr>'}</tbody></table></div>
+      </div>
+    </div>`;
+  } else if(cat === 'lives'){
+    rows = items.map((s, i) =>
+      `<tr data-cat="${cat}" data-idx="${i}" class="${sel.has(i)?'selected':''}">
+        <td><input type="checkbox" ${sel.has(i)?'checked':''}></td>
+        <td class="col-name" title="${esc(s.name)}">${esc(s.name)}</td>
+        <td class="col-api" title="${esc(s.url)}">${esc(s.url)}</td>
+      </tr>`
+    ).join('');
+    return `<div class="node-section" id="${sectionId}">
+      <div class="node-section-title"><input type="checkbox" class="sel-all" data-cat="${cat}"> 全选 ${config.label}</div>
+      <div class="node-section-body">
+        <div class="table-wrap"><table><thead><tr><th style="width:40px"></th><th>名称</th><th>URL</th></tr></thead><tbody>${rows||'<tr><td colspan="3" class="empty-state"><p>无数据</p></td></tr>'}</tbody></table></div>
+      </div>
+    </div>`;
+  } else if(cat === 'parses'){
+    rows = items.map((s, i) =>
+      `<tr data-cat="${cat}" data-idx="${i}" class="${sel.has(i)?'selected':''}">
+        <td><input type="checkbox" ${sel.has(i)?'checked':''}></td>
+        <td class="col-name" title="${esc(s.name)}">${esc(s.name)}</td>
+        <td class="col-api" title="${esc(s.url)}">${esc(s.url)}</td>
+        <td class="col-type"><span class="col-tag tag-other">${s.type||'-'}</span></td>
+      </tr>`
+    ).join('');
+    return `<div class="node-section" id="${sectionId}">
+      <div class="node-section-title"><input type="checkbox" class="sel-all" data-cat="${cat}"> 全选 ${config.label}</div>
+      <div class="node-section-body">
+        <div class="table-wrap"><table><thead><tr><th style="width:40px"></th><th>名称</th><th>URL</th><th>Type</th></tr></thead><tbody>${rows||'<tr><td colspan="4" class="empty-state"><p>无数据</p></td></tr>'}</tbody></table></div>
+      </div>
+    </div>`;
+  } else {
+    // wallpapers / rules
+    rows = items.map((s, i) => {
+      const val = typeof s === 'string' ? s : JSON.stringify(s);
+      return `<tr data-cat="${cat}" data-idx="${i}" class="${sel.has(i)?'selected':''}">
+        <td><input type="checkbox" ${sel.has(i)?'checked':''}></td>
+        <td class="col-api" title="${esc(val)}">${esc(val)}</td>
+      </tr>`;
+    }).join('');
+    return `<div class="node-section" id="${sectionId}">
+      <div class="node-section-title"><input type="checkbox" class="sel-all" data-cat="${cat}"> 全选 ${config.label}</div>
+      <div class="node-section-body">
+        <div class="table-wrap"><table><thead><tr><th style="width:40px"></th><th>内容</th></tr></thead><tbody>${rows||'<tr><td colspan="2" class="empty-state"><p>无数据</p></td></tr>'}</tbody></table></div>
+      </div>
+    </div>`;
+  }
+}
+
+function esc(s){
+  if(!s) return '';
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+// ============ Selection Events ============
+document.addEventListener('change', e => {
+  const cb = e.target;
+  if(cb.classList.contains('sel-all')){
+    const cat = cb.dataset.cat;
+    const items = allNodes[cat];
+    if(cb.checked){
+      items.forEach((_, i) => selections[cat].add(i));
+    } else {
+      selections[cat].clear();
+    }
+    refreshSelectionUI(cat);
+    updateExportInfo();
+    renderExport();
+    return;
+  }
+  if(cb.closest && cb.closest('tr[data-cat]')){
+    const tr = cb.closest('tr[data-cat]');
+    const cat = tr.dataset.cat;
+    const idx = parseInt(tr.dataset.idx);
+    if(cb.checked) selections[cat].add(idx); else selections[cat].delete(idx);
+    tr.classList.toggle('selected', selections[cat].has(idx));
+    updateRowCheckbox(cat, idx);
+    updateExportInfo();
+    renderExport();
+  }
+});
+
+function refreshSelectionUI(cat){
+  const items = allNodes[cat];
+  const allChecked = items.length > 0 && selections[cat].size === items.length;
+  const selAll = document.querySelector(`.sel-all[data-cat="${cat}"]`);
+  if(selAll) selAll.checked = allChecked;
+  $$(`tr[data-cat="${cat}"]`).forEach(tr => {
+    const idx = parseInt(tr.dataset.idx);
+    const cb = tr.querySelector('input[type="checkbox"]');
+    const checked = selections[cat].has(idx);
+    if(cb) cb.checked = checked;
+    tr.classList.toggle('selected', checked);
+  });
+}
+
+function updateRowCheckbox(cat, idx){
+  const tr = document.querySelector(`tr[data-cat="${cat}"][data-idx="${idx}"]`);
+  if(tr) tr.classList.toggle('selected', selections[cat].has(idx));
+  const items = allNodes[cat];
+  const allChecked = items.length > 0 && selections[cat].size === items.length;
+  const selAll = document.querySelector(`.sel-all[data-cat="${cat}"]`);
+  if(selAll) selAll.checked = allChecked;
+}
+
+// ============ Toolbar ============
+$('#btnSelectAll').addEventListener('click', () => {
+  for(const cat of ['sites','lives','parses','wallpapers','rules']){
+    allNodes[cat].forEach((_, i) => selections[cat].add(i));
+    refreshSelectionUI(cat);
+  }
+  updateExportInfo();
+  renderExport();
+  toast('✅ 全选');
+});
+$('#btnInverse').addEventListener('click', () => {
+  for(const cat of ['sites','lives','parses','wallpapers','rules']){
+    const items = allNodes[cat];
+    const newSel = new Set();
+    items.forEach((_, i) => { if(!selections[cat].has(i)) newSel.add(i); });
+    selections[cat] = newSel;
+    refreshSelectionUI(cat);
+  }
+  updateExportInfo();
+  renderExport();
+  toast('🔄 已反选');
+});
+$('#btnClearSel').addEventListener('click', () => {
+  for(const cat of ['sites','lives','parses','wallpapers','rules']){
+    selections[cat].clear();
+    refreshSelectionUI(cat);
+  }
+  updateExportInfo();
+  renderExport();
+  toast('❌ 已清除');
+});
+
+function updateExportInfo(){
+  let total = 0;
+  for(const cat of ['sites','lives','parses','wallpapers','rules']){
+    total += selections[cat].size;
+  }
+  $('#exportInfo').textContent = `已选中: ${total} 个节点`;
+}
+
+// ============ Export ============
+// TVBox 主配置解析（ApiConfig.parseJson，takagen99/Box 源码）对部分字段要求固定类型：
+//   - parses[].ext 必须是 JSON 对象：obj.get("ext").getAsJsonObject()（字符串/数组会抛 IllegalStateException）
+//   - sites[].type 必须可 getAsInt（数字或数字串），缺失则 NPE
+//   - sites[].key/name/api、parses[].name/url 必须可 getAsString（不能是对象）
+//   - 顶层 livePlayHeaders 若存在必须是数组（infoJson.getAsJsonArray 无条件调用）
+// 订阅源之所以能用，正是因为它按「源的原始类型」被解析。所以导出的正确策略是：
+// ============ TVBox 兼容导出 ============
+// 经验结论（已用真实 data.json + 能正常识别的 123.json + TVBox ApiConfig.parseJson 源码三方对照验证）：
+// TVBox 主配置（data.json）走 Gson 严格反序列化，对部分字段要求固定类型：
+//   1) parses[].ext 必须是 JSON 对象（源码: String ext = obj.has("ext") ? obj.get("ext").getAsJsonObject().toString() : ""）。
+//      很多订阅源/嗅探源把 ext 存成“JSON 字符串”（如 "{\"header\":{...}}"），放进主配置后
+//      getAsJsonObject() 在字符串上直接抛 IllegalStateException → 整个配置“配置解析失败”。
+//   2) 对比可正常识别的 123.json：它的 parses 数组为空（len=0），因此根本不触发该要求；
+//      其 sites[].ext 是 string/object 混合，而 TVBox 对 sites.ext 用 optString 读取，string 与 object 都兼容。
+//      → 证明“根因是 parses[].ext 为字符串”，而非 sites 或其它字段。
+// 处理策略：
+//   - 缺失字段补安全默认值（type 等）。
+//   - parses[].ext 若已是对象 → 保留；若是“JSON 字符串” → 解析还原成对象；若无法解析 → 置为 {}（空对象，TVBox 接受）。
+//   - 剔除非对象的数组元素（如 rules 里误入的 null），否则 getJSONObject 会抛异常。
+//   - sites[].categories 若是字符串 → 按逗号拆成数组（部分版本用 getAsJsonArray 读取）。
+const NODE_DEFAULTS = {
+  sites:  { type: 1 },   // TVBox: type 为必填 int，缺失会 NPE
+  parses: { type: 0 },   // parses 的 type 默认 0（普通嗅探）
+  lives:  { type: 0 }    // lives 的 type 必填 int
+};
+// parses[].ext 必须是对象：把“JSON 字符串”还原成对象（这是修复“配置解析失败”的关键）
+function coerceExt(v){
+  if(v === null || v === undefined) return undefined;            // 缺失保持缺失
+  if(typeof v === 'object' && !Array.isArray(v)) return v;       // 已是对象，保留
+  if(typeof v === 'string'){
+    const s = v.trim();
+    if(s === '') return undefined;
+    try { const o = JSON.parse(s); if(o && typeof o === 'object' && !Array.isArray(o)) return o; } catch(e){}
+    return {};   // 普通字符串（如 URL）无法作对象 → 空对象（TVBox 接受，仅丢失该 ext 数据）
+  }
+  return {};
+}
+function exportNodes(nodes, kind){
+  if(!Array.isArray(nodes)) return nodes;
+  const def = NODE_DEFAULTS[kind] || null;
+  // 过滤掉非对象元素（如 rules 中的 null），否则 TVBox 的 getJSONObject(i) 会抛异常
+  return nodes.filter(n => n && typeof n === 'object' && !Array.isArray(n))
+    .map(n => {
+      const o = Object.assign({}, n);
+      if(def){ for(const f in def){ if(!(f in o) || o[f] === null || o[f] === undefined) o[f] = def[f]; } }
+      // type 必须是数字
+      if(def && 'type' in o){
+        const t = Number(o.type);
+        o.type = Number.isFinite(t) ? t : def.type;
+      }
+      // parses.ext 字符串 → 还原为对象（修复致命错误）
+      if(kind === 'parses' && 'ext' in o){ const e = coerceExt(o.ext); if(e === undefined) delete o.ext; else o.ext = e; }
+      // sites.ext 若为 JSON 字符串（被转义的对象/数组），尝试还原为真实对象；
+      // 若只是普通 URL 字符串（如天天、热播的 ext）则保持原样，TVBox 接受字符串 ext。
+      if(kind === 'sites' && 'ext' in o && typeof o.ext === 'string'){
+        const t = o.ext.trim();
+        if(t.startsWith('{') || t.startsWith('[') || t.startsWith('"{') || t.startsWith('"[')){
+          const e = coerceExt(o.ext);
+          if(e !== undefined) o.ext = e;
+        }
+      }
+      // sites.categories 字符串 → 数组
+      if(kind === 'sites' && 'categories' in o && typeof o.categories === 'string'){
+        o.categories = o.categories.split(',').map(s => s.trim()).filter(Boolean);
+      }
+      return o;
+    });
+}
+
+// 站点级 jar 处理（多源合并的核心修复）。返回自动补上 jar 的站点数。
+// ① 相对路径 jar：按来源地址解析为绝对 URL；解析失败时优先回退到「该站点所属源的 spider」
+//    （比全局 spider 准确得多——源 spider 才含有本源站点所需的类）。
+// ② per-site jar 注入：站点自身没有 jar、但 api 是 csp_/js_/py_ 类名（必须靠 spider 里的类才能解析）时，
+//    把「它所属源自带的 spider」写成该站点的 jar，TVBox 会为它单独加载。
+//
+// 为什么要这么做：TVBox 主配置只有 1 个全局 spider 槽位，而不同作者的配置依赖各自 spider 里的类。
+// 实测一份 1983 站点的合并配置需要 551 种 csp_ 类，单个 spider 只能覆盖 8%，导致约 40% 的站点
+// 「配置能加载、但搜索永远无结果」。而实测「源 spider 对本源站点」的覆盖率是 98.3%——
+// 同一作者写的 spider 必然含有他自家站点所需的类。
+// TVBox 支持 sites[].jar（源作者自己就在用，实测配置里就有 253 个站点自带 jar），因此这条路走得通。
+function applyPerSiteJar(sites, resolvedSpider){
+  let injected = 0;
+  if(!Array.isArray(sites)) return 0;
+  sites.forEach(s => {
+    if(!s || typeof s !== 'object') return;
+    const src = s.__srcSpider;      // 该站点所属源配置自带的 spider（内部标记）
+    delete s.__srcSpider;           // 内部标记，绝不能写进导出文件
+
+    if(typeof s.jar === 'string'){
+      if(!/^https?:\/\//i.test(s.jar.trim())){
+        const resolved = resolveSpiderPath(s.jar, currentBaseUrl);
+        if(resolved && /^https?:\/\//i.test(resolved.split(';')[0].trim())){
+          s.jar = resolved;                       // 相对路径 → 按来源地址解析为绝对 URL
+        } else if(src && isSpiderSafe(src)){
+          s.jar = src;                            // 解析失败 → 用本站点的源 spider，比全局 spider 更准
+        } else if(resolvedSpider){
+          s.jar = resolvedSpider;
+        } else {
+          delete s.jar;
+        }
+      }
+      return;                                     // 自带绝对 jar → 尊重源配置，不动
+    }
+
+    // 无 jar 的依赖型站点 → 注入所属源的 spider 作为 per-site jar
+    if(src && isSpiderSafe(src) && dependsOnSpider(s) && src !== resolvedSpider){
+      s.jar = src;
+      injected++;
+    }
+  });
+  return injected;
+}
+
+function buildExportJSON(){
+  spiderStrippedFlag = false; spiderFallbackFlag = false; spiderCoverageFlag = false; chosenSpiderMeta = null;
+  const output = {};
+  // 在 JSON 最前面记录导出时间（作为首字段；Gson 默认忽略未知顶层字段，不影响 TVBox 识别）
+  const _d = new Date();
+  const _pad = n => String(n).padStart(2, '0');
+  output.exportTime = `${_d.getFullYear()}-${_pad(_d.getMonth() + 1)}-${_pad(_d.getDate())} ${_pad(_d.getHours())}:${_pad(_d.getMinutes())}:${_pad(_d.getSeconds())}`;
+  const includeGlobal = $('#chkGlobal').checked;
+  const compat = $('#chkCompat').checked; // 默认勾选 = TVBox 兼容模式（保留源字段类型 + 补全缺失 type）
+  const strict = $('#chkStrict').checked;  // 严格模式 = 剔除未通过审核（缺必填字段）的节点
+
+  // Merge global top-level fields (spider/logo/wallpaper/etc.) FIRST so that
+  // node arrays below can override if needed. This is what makes search/playback work.
+  if(includeGlobal && Object.keys(globalFields).length > 0){
+    Object.assign(output, globalFields);
+  }
+
+  // spider 决策（关键逻辑 v3）：
+  // ● 单源场景：无条件「跟随源自带 spider」（只要是 http/https 绝对地址）。
+  //   能在该源 TVBox 配置里正常使用的 spider，必然含有本源站点所需的 csp_/js_ 方法；
+  //   强行替换成其它通用 jar 就会出现「go 代理正常、搜索为空」。
+  //   TVBox 生态里大量 spider 使用 HTTP / 裸 IP / .php / .jpg / 动态 302（需 okhttp UA）等形式，
+  //   浏览器 fetch 探测常常失败，但 TVBox 用 okhttp UA 却能正常取到 jar，因此不能凭浏览器探测结果丢弃源 spider。
+  //   只有「无 scheme 的相对路径」才回退（TVBox 远程加载必死）。
+  // ● 多源合并：TVBox 主配置只有 1 个全局 spider 槽位，无法每源一个 spider；
+  //   统一回退到「上次自动探测可用（或默认）spider」。若不同源需要不同 jar，依赖 per-site jar 的站点保留其 jar。
+  // ● 强制勾选：一律使用用户填写的 spider。
+  const resolvedSpider = (function(){
+    const forceChecked = $('#chkSpiderOverride').checked;
+    const boxVal = ($('#spiderOverrideUrl').value || '').trim();
+    if(forceChecked && boxVal) return boxVal;                       // 用户显式强制
+    if(sourceCount === 1){
+      const src = globalFields.spider;
+      if(src && isSpiderSafe(src)) return src;                      // 单源 + 语法安全 → 跟随源（关键修复）
+    }
+    // 多源合并：TVBox 主配置只有 1 个全局 spider 槽位，无法每源一个 spider；
+    // 自动选出「覆盖面最广」的 spider（覆盖依赖它的站点最多的那个源 spider），让最多站点能正常解析。
+    // 若不同源需要不同 jar，依赖 per-site jar 的站点仍保留各自 jar；其余仅能共用这一个全局 spider。
+    const best = chooseBestSpider();
+    if(best){
+      spiderCoverageFlag = true;                                    // 标记：已按覆盖面自动选 spider
+      return best;
+    }
+    spiderFallbackFlag = true;                                      // 没有任何源带可用 spider → 回退到通用兜底
+    return lastWorkingSpider() || FALLBACK_SPIDER;
+  })();
+  if(resolvedSpider !== undefined) output.spider = resolvedSpider;
+  else delete output.spider;
+
+  if(selections.sites.size > 0){
+    const sites = [];
+    selections.sites.forEach(i => { const s = allNodes.sites[i]; const raw = (s && s.raw) ? s.raw : s; if(raw) sites.push(raw); });
+    output.sites = compat ? exportNodes(sites, 'sites') : sites;
+  }
+  if(selections.lives.size > 0){
+    const lives = [];
+    selections.lives.forEach(i => { const s = allNodes.lives[i]; const raw = (s && s.raw) ? s.raw : s; if(raw) lives.push(raw); });
+    output.lives = compat ? exportNodes(lives, 'lives') : lives;
+  }
+  if(selections.parses.size > 0){
+    const parses = [];
+    selections.parses.forEach(i => { const s = allNodes.parses[i]; const raw = (s && s.raw) ? s.raw : s; if(raw) parses.push(raw); });
+    output.parses = compat ? exportNodes(parses, 'parses') : parses;
+  }
+  if(selections.wallpapers.size > 0){
+    const wp = Array.from(selections.wallpapers).map(i => allNodes.wallpapers[i]);
+    output.wallpapers = compat ? exportNodes(wp, 'wallpapers') : wp;
+  }
+  if(selections.rules.size > 0){
+    const rl = Array.from(selections.rules).map(i => allNodes.rules[i]);
+    output.rules = compat ? exportNodes(rl, 'rules') : rl;
+  }
+
+  // 站点级 jar：源作者写在这里通常是因为该站点需要独立的 jar（如 drpy_js 与普通 csp 分开打包）。
+  // 盲目改写成全局 spider 会破坏站点；因此「绝对 jar（含 http 裸 IP / .php / .jpg）」一律保留原值。
+  // 只有「相对 jar」才按来源地址解析为绝对 URL；解析失败时回退到全局 spider。
+  // 站点级 jar 处理：相对路径解析 + per-site jar 注入（多源合并的核心修复）
+  perSiteJarCount = applyPerSiteJar(output.sites, resolvedSpider);
+
+  // 严格模式：剔除缺少必填字段的节点（让导出文件能干净「通关」TVBox 审核）
+  if(strict){
+    if(output.sites) output.sites = output.sites.filter(s => s && s.key && s.api);
+    if(output.lives) output.lives = output.lives.filter(l => l && l.name && l.url);
+    if(output.parses) output.parses = output.parses.filter(p => p && p.name && p.url);
+    if(output.rules) output.rules = output.rules.filter(r => r && r.name);
+  }
+
+  // TVBox 兼容模式安全网：若 spider 仍是「相对路径」（无 scheme、无法解析为绝对 URL），
+  // 远程加载会触发 “jar load err”。自动剥离该 spider 引用以消除加载错误
+  // （其依赖的 csp_/js_/py_ 等站点仍保留，但会失去 spider 解析能力，需用户另行提供可达的 spider 绝对 URL）。
+  if(compat && output.spider !== undefined && output.spider !== null){
+    const sp = (typeof output.spider === 'string') ? output.spider : (output.spider.spider || '');
+    const head = (sp || '').split(';')[0];
+    if(sp && !/^https?:\/\//i.test(head)){
+      delete output.spider;
+      spiderStrippedFlag = true;
+    }
+  }
+
+  return output;
+}
+
+// ============ TVBox 兼容审核（导出前预检，给出是否「通关」）============
+// 返回 { passed:boolean, warnings:[{lv:'error'|'warn'|'info', msg}] }
+function compatAudit(obj){
+  const warnings = [];
+  const sites = obj.sites || [];
+  const lives = obj.lives || [];
+  const parses = obj.parses || [];
+  const rules = obj.rules || [];
+
+  // 1) 必填字段缺失检查
+  sites.forEach((s, i) => {
+    if(!s || !s.key) warnings.push({ lv:'warn', msg:`sites[${i}] 缺少 key（TVBox 用于去重标识，缺失可能导致源重复/不显示）` });
+    else if(typeof s.key !== 'string') warnings.push({ lv:'warn', msg:`sites[${i}].key 不是字符串（实际 ${typeof s.key}）` });
+    if(!s || !s.api) warnings.push({ lv:'warn', msg:`sites[${i}] 缺少 api（TVBox 无法加载该影视源）` });
+  });
+  lives.forEach((l, i) => {
+    if(!l || !l.name) warnings.push({ lv:'warn', msg:`lives[${i}] 缺少 name` });
+    if(!l || !l.url) warnings.push({ lv:'warn', msg:`lives[${i}] 缺少 url` });
+  });
+  parses.forEach((p, i) => {
+    if(!p || !p.name) warnings.push({ lv:'warn', msg:`parses[${i}] 缺少 name` });
+    if(!p || !p.url) warnings.push({ lv:'warn', msg:`parses[${i}] 缺少 url` });
+  });
+  rules.forEach((r, i) => {
+    if(!r || !r.name) warnings.push({ lv:'warn', msg:`rules[${i}] 缺少 name` });
+  });
+
+  // 2) TVBox 致命类型检查（这些会直接导致 Gson/JSONObject 抛异常 → “配置解析失败”）
+  //    parses[].ext 必须是对象（源码: obj.get("ext").getAsJsonObject()）
+  parses.forEach((p, i) => {
+    if(p && p.ext !== undefined && p.ext !== null && (typeof p.ext !== 'object' || Array.isArray(p.ext))){
+      warnings.push({ lv:'error', msg:`parses[${i}].ext 必须是 JSON 对象，当前为 ${Array.isArray(p.ext) ? '数组' : typeof p.ext}（将触发 TVBox “配置解析失败”，请勿将其转为字符串）` });
+    }
+  });
+  //    sites[].ext 若为对象/数组可保留（TVBox 用 toString）；若为字符串也 OK，无需处理
+  //    livePlayHeaders 顶层若缺失则忽略；若存在必须是数组
+  if(obj.livePlayHeaders !== undefined && obj.livePlayHeaders !== null && !Array.isArray(obj.livePlayHeaders)){
+    warnings.push({ lv:'error', msg:`顶层 livePlayHeaders 必须是数组，当前为 ${typeof obj.livePlayHeaders}（TVBox 用 getAsJsonArray 读取，非数组会崩溃）` });
+  }
+  //    sites/lives/parses 每个元素必须是对象
+  for(const [cat, arr] of [['sites',sites],['lives',lives],['parses',parses],['rules',rules]]){
+    arr.forEach((it, i) => { if(it === null || typeof it !== 'object' || Array.isArray(it)) warnings.push({ lv:'error', msg:`${cat}[${i}] 不是合法的对象元素` }); });
+  }
+
+  // 3) 顶层 spider 审核：只有非 http/https 绝对地址（相对路径 / 其它协议）才会触发 “jar load err”
+  if(obj.spider !== undefined && obj.spider !== null){
+    const sp = (typeof obj.spider === 'string') ? obj.spider : (obj.spider.spider || '');
+    const head = (sp || '').split(';')[0];
+    if(sp && !/^https?:\/\//i.test(head)){
+      warnings.push({ lv:'error', msg:`spider 不是 http/https 绝对 URL「${(sp+'').slice(0,40)}」，TVBox 远程加载会触发“jar load err”` });
+    }
+  }
+  if(spiderCoverageFlag && chosenSpiderMeta){
+    warnings.push({ lv:'info', msg:`本次合并了 ${sourceCount} 个源配置。TVBox 主配置只有 1 个全局 spider 槽位，已自动选用「覆盖面最广」的 spider（来自 ${chosenSpiderMeta.sourcesCount} 个源、覆盖 ${chosenSpiderMeta.dependent} 个依赖 spider 的站点，原因：${chosenSpiderMeta.reason}）。个别源若依赖自家独有 spider 方法且站点无独立 jar，其站点可能解析不到内容（属兼容限制，不影响配置加载）` });
+  } else if(spiderFallbackFlag){
+    if(sourceCount > 1){
+      warnings.push({ lv:'info', msg:`本次合并了 ${sourceCount} 个源配置，但没有任何源自带可用 spider，已自动统一使用默认 spider；个别源若依赖自家独有 spider 方法，其站点可能解析不到内容（属兼容限制，不影响配置加载）` });
+    } else {
+      warnings.push({ lv:'info', msg:'源配置自带的 spider 不是 http/https 绝对地址（或为相对路径且无法推断来源），已自动替换为默认 spider；如需指定其它 spider 请在上方框填入并勾选「强制使用上方 spider」' });
+    }
+  }
+  if(spiderStrippedFlag){
+    warnings.push({ lv:'info', msg:'已自动剥离「相对路径 spider」（消除 jar load err）；其依赖的 csp_/js_/py_ 等站点仍保留但可能失去解析能力，建议另行提供可访问的 spider 绝对 URL' });
+  }
+  if(perSiteJarCount > 0){
+    warnings.push({ lv:'info', msg:`已为 ${perSiteJarCount} 个「依赖 spider 类、但自身没有 jar」的站点自动补上「所属源自带的 spider」作为站点级 jar。TVBox 会为这些站点单独加载各自作者的 jar，从而绕开「主配置只有 1 个全局 spider 槽位」的限制——这是多源合并后大量站点搜索无结果的核心修复` });
+  }
+  // 新增：站点级相对路径 api / ext / jar 自动解析提示
+  let relCount = 0;
+  if(obj.sites){
+    obj.sites.forEach(s => {
+      if(!s) return;
+      for(const f of ['api','ext','jar']){
+        if(typeof s[f] === 'string' && s[f].trim().startsWith('./')) relCount++;
+      }
+    });
+  }
+  if(relCount > 0){
+    warnings.push({ lv:'warn', msg:`检测到 ${relCount} 个站点字段仍是「./相对路径」（来源未知导致解析器无法解析为绝对 URL），TVBox 加载时会 404；请从 URL 方式重新解析该源` });
+  }
+  // 合并多源提示：TVBox 仅支持 1 个全局 spider，合并多个不同源时部分源自带 spider 的 csp_ 站点可能需要对应
+  // spider 方法才能解析；若当前 spider 为通用兜底，个别站点可能解析不到内容（属兼容限制，不影响配置加载）。
+  {
+    const cspCount = (obj.sites||[]).filter(s => s && typeof (s.key||'')==='string' && ((s.key||'').startsWith('csp_') || (s.api||'').startsWith('csp_'))).length;
+    if(cspCount > 0){
+      warnings.push({ lv:'info', msg:`检测到 ${cspCount} 个 csp_ 类站点依赖 spider 解析。TVBox 仅支持 1 个全局 spider，合并多源时若站点来自不同源、需各自 spider 方法，个别站点可能解析不到内容（属兼容限制，不影响配置加载）` });
+    }
+  }
+  // 4) 空配置提示
+  const hasNodes = sites.length || lives.length || parses.length || rules.length;
+  if(!hasNodes) warnings.push({ lv:'info', msg:'未包含任何节点数组（sites/lives/parses/rules 均为空）' });
+
+  const passed = !warnings.some(w => w.lv === 'error');
+  return { passed, warnings };
+}
+
+function renderGlobalPreview(){
+  const wrap = $('#globalPreviewWrap');
+  const keys = Object.keys(globalFields);
+  if(keys.length === 0){ wrap.style.display = 'none'; return; }
+  const g = {};
+  for(const k of keys){
+    const v = globalFields[k];
+    g[k] = (typeof v === 'string' && v.length > 80) ? v.slice(0,80) + '…' : v;
+  }
+  $('#globalPreview').textContent = JSON.stringify(g, null, 2);
+}
+
+function renderExport(){
+  const obj = buildExportJSON();
+  const hasNodes = Object.values(selections).reduce((a,s) => a + s.size, 0) > 0;
+  const hasGlobal = $('#chkGlobal').checked && Object.keys(globalFields).length > 0;
+  const wrap = $('#exportPreviewWrap');
+  if(!hasNodes && !hasGlobal){
+    wrap.style.display = 'none';
+    return;
+  }
+  wrap.style.display = 'block';
+  const json = JSON.stringify(obj, null, 2);
+  $('#exportPreview').textContent = json.length > 3000 ? json.slice(0, 3000) + '\n... (已截断，实际文件完整)' : json;
+
+  // 兼容审核
+  const auditBox = $('#auditBox');
+  if($('#chkAudit').checked){
+    auditBox.style.display = 'block';
+    auditBox.innerHTML = renderAudit(compatAudit(obj));
+  } else {
+    auditBox.style.display = 'none';
+  }
+}
+
+function renderAudit(res){
+  const badge = res.passed
+    ? '<span style="color:#16a34a;font-weight:600">✓ 通过 TVBox 兼容审核</span>'
+    : '<span style="color:#dc2626;font-weight:600">⚠ 存在兼容风险</span>';
+  let html = `<div style="margin:10px 0 4px;font-size:.85rem">${badge}（共 ${res.warnings.length} 条提示）</div>`;
+  if(res.warnings.length){
+    html += '<ul style="margin:0;padding-left:18px;font-size:.78rem;color:var(--text2);line-height:1.7">';
+    for(const w of res.warnings){
+      const c = w.lv === 'error' ? '#dc2626' : (w.lv === 'warn' ? '#d97706' : '#2563eb');
+      const icon = w.lv === 'error' ? '✕' : (w.lv === 'warn' ? '!' : 'i');
+      html += `<li style="color:${c}"><b>[${icon}]</b> ${esc(w.msg)}</li>`;
+    }
+    html += '</ul>';
+  }
+  return html;
+}
+
+$('#btnCopy').addEventListener('click', () => {
+  const obj = buildExportJSON();
+  if(Object.keys(obj).length === 0){ toast('❌ 请至少选择一个节点'); return; }
+  const json = JSON.stringify(obj, null, 2);
+  navigator.clipboard.writeText(json).then(() => {
+    toast('📋 JSON 已复制到剪贴板');
+  }).catch(() => {
+    // Fallback
+    const ta = document.createElement('textarea');
+    ta.value = json;
+    document.body.appendChild(ta);
+    ta.select();
+    document.execCommand('copy');
+    document.body.removeChild(ta);
+    toast('📋 JSON 已复制');
+  });
+});
+
+$('#btnExport').addEventListener('click', () => {
+  const obj = buildExportJSON();
+  if(Object.keys(obj).length === 0){ toast('❌ 请至少选择一个节点'); return; }
+  const json = JSON.stringify(obj, null, 2);
+  const blob = new Blob([json], { type: 'application/json;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'data.json';
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+  toast('⬇️ 已导出 data.json');
+});
+
+// Global config toggle
+$('#chkGlobal').addEventListener('change', () => {
+  renderExport();
+});
+$('#chkCompat').addEventListener('change', () => {
+  renderExport();
+});
+$('#chkAudit').addEventListener('change', () => {
+  renderExport();
+});
+$('#chkStrict').addEventListener('change', () => {
+  renderExport();
+});
+$('#btnToggleGlobal').addEventListener('click', () => {
+  const wrap = $('#globalPreviewWrap');
+  renderGlobalPreview();
+  wrap.style.display = (wrap.style.display === 'block') ? 'none' : (Object.keys(globalFields).length ? 'block' : 'none');
+});
+
+// ============ Selected files preview ============
+function renderFileList(){
+  const files = $('#inputFile').files;
+  const list = $('#fileList');
+  if(!files || files.length === 0){ list.innerHTML = ''; return; }
+  list.innerHTML =
+    `<div class="file-list-title">已选择 ${files.length} 个文件，点击「解析」一起处理：</div>` +
+    Array.from(files).map(f => `<span class="file-chip" title="${esc(f.name)}">${esc(f.name)}</span>`).join('');
+}
+$('#inputFile').addEventListener('change', renderFileList);
+
+// ============ Clear ============
+$('#btnClear').addEventListener('click', () => {
+  $('#inputUrl').value = '';
+  $('#inputText').value = '';
+  $('#inputFile').value = '';
+  $('#proxyInput').value = '';
+  $('#fileList').innerHTML = '';
+  allNodes = { sites: [], lives: [], parses: [], wallpapers: [], rules: [] };
+  globalFields = {};
+  selections = { sites: new Set(), lives: new Set(), parses: new Set(), wallpapers: new Set(), rules: new Set() };
+  fetchLog = [];
+  sourceCount = 0; sourceSpiders = []; chosenSpiderMeta = null; spiderCoverageFlag = false; perSiteJarCount = 0;
+  $('#resultsCard').style.display = 'none';
+  $('#exportCard').style.display = 'none';
+  $('#statsBar').style.display = 'none';
+  $('#logCard').style.display = 'none';
+  $('#globalPreviewWrap').style.display = 'none';
+  $('#chkGlobal').checked = true;
+  showProgress(false);
+  toast('🗑️ 已清空');
+});
+
+// ============ Multi-repo (多仓) ============
+// 把每个输入链接作为一个仓库，汇总成 TVBox 多仓配置（顶层数组 [{name,url}]，TVBox / 影视仓 全版本通用）。
+// 与「解析」不同：多仓不合并站点，而是让 TVBox 逐个远程加载每个源，互不影响、互不替换。
+function hostOfUrl(url){
+  try { return new URL(url).hostname; } catch(e){ return url.replace(/^https?:\/\//,'').split('/')[0]; }
+}
+// 解析「多仓」输入文本：
+//  - 形如「名字，链接」（中英文逗号均可）的整行 → 直接取用户指定的名字 + 链接（name 不为空）；
+//  - 其它纯链接行 → name 留空，后续用域名兜底。
+function parseMultiRepoInputs(content){
+  const out = [];
+  const lines = String(content || '').split(/\r?\n/).map(l => l.trim()).filter(Boolean);
+  for(const line of lines){
+    // 中英文逗号均可作为分隔符；取首个逗号后的第一段 URL
+    const m = line.match(/^(.*?)[，,]\s*(https?:\/\/\S+)\s*$/);
+    if(m){
+      const name = m[1].trim();
+      const url = m[2].trim();
+      if(name) { out.push({ name, url }); continue; }   // 有名字才走「名字，链接」分支
+    }
+    // 其余：按通用规则抽取 URL（name 留空，稍后用 title/域名）
+    extractUrls(line).forEach(u => out.push({ name: null, url: u }));
+  }
+  return out;
+}
+let lastMultiRepo = null; // 缓存最近一次生成的多仓数组 [{name,url}]，供复制/导出/编辑使用
+
+// TVBox 多仓（订阅）必须是对象格式：{ urls:[{url,name}], vip:[...] }
+// 直接导出裸数组 [ {name,url} ] 会被 TVBox 判为「订阅有问题」——顶层数组不是合法的仓库索引。
+function multiRepoJSON(){
+  const list = lastMultiRepo || [];
+  return {
+    urls: list.map(s => ({ url: s.url, name: s.name })),
+    vip: [ { url: '', name: '默认' } ]
+  };
+}
+
+// 输入兼容：若粘贴的是标准多仓 JSON（对象含 urls 数组），直接取出 {url, name}，不丢名字
+function parseMultiRepoJSONBlob(content){
+  const txt = String(content || '').trim();
+  if(!(txt.startsWith('{') || txt.startsWith('['))) return null;
+  let obj = null;
+  try {
+    const res = tryParseJSON(txt);            // 注意：返回 {parsed, obj}，不是裸对象
+    obj = res && res.parsed ? res.obj : null;
+  } catch(e) { return null; }
+  if(!obj) return null;
+  const raw = Array.isArray(obj) ? obj : (Array.isArray(obj.urls) ? obj.urls : null);
+  if(!raw) return null;
+  const out = [];
+  for(const it of raw){
+    if(typeof it === 'string'){ const u = (it.match(URL_RE) || [])[0]; if(u) out.push({ name: null, url: u }); continue; }
+    if(!it || typeof it !== 'object') continue;
+    const u = (String(it.url || '').match(URL_RE) || [])[0];
+    if(!u) continue;
+    out.push({ name: (it.name || it.title || '').trim() || null, url: u });
+  }
+  return out.length ? out : null;
+}
+
+async function buildMultiRepo(){
+  const sources = await gatherInputs();
+  if(!sources || sources.length === 0){ toast('❌ 请先输入链接 / 粘贴文本 / 选择文件'); return; }
+
+  // 收集 {name, url} 列表：
+  //  - 形如「名字，链接」（中英文逗号均可）的整行 → 直接取用户指定的名字 + 链接；
+  //  - 其它纯链接 → name 留空，稍后用域名兜底。
+  const items = [];
+  for(const src of sources){
+    // 粘贴标准多仓 JSON（对象或数组）时走结构化解析，保住原有仓库名
+    const asJson = parseMultiRepoJSONBlob(src.content);
+    (asJson || parseMultiRepoInputs(src.content)).forEach(it => items.push(it));
+  }
+  if(items.length === 0){
+    toast('❌ 未检测到任何 URL，多仓需要可远程加载的配置地址');
+    return;
+  }
+  const rawCount = items.length;
+
+  // 去重（忽略末尾斜杠与大小写差异，按 url 判重）；同 url 时优先保留「带名字」的那条
+  const norm = u => u.trim().replace(/\/+$/,'').toLowerCase();
+  const byUrl = new Map();   // normalized url -> index in uniq
+  const uniq = [];
+  for(const it of items){
+    const n = norm(it.url);
+    if(byUrl.has(n)){
+      const idx = byUrl.get(n);
+      if(it.name && !uniq[idx].name) uniq[idx] = it;   // 同名 URL 优先用「名字，链接」指定的名字
+      continue;
+    }
+    byUrl.set(n, uniq.length);
+    uniq.push(it);
+  }
+
+  // 全程不发起任何网络请求：多仓只是一份索引，TVBox 加载时才会去拉各源。
+  // 提前抓取既慢，又会因 CORS / 代理波动让整份生成卡住或半途失败。
+  // 名字规则：「名字，链接」用你指定的名字，纯链接用域名兜底（可点「编辑名称」手动改）。
+  const stores = uniq.map(it => ({ name: it.name || hostOfUrl(it.url), url: it.url }));
+
+  // 按名称排序，方便查阅
+  stores.sort((a,b) => a.name.localeCompare(b.name, 'zh'));
+
+  // 重名加序号：同名仓库在 TVBox 下拉里无法区分，形如「饭太硬」「饭太硬 2」
+  const seen = new Map();
+  stores.forEach(s => {
+    const n = seen.get(s.name) || 0;
+    seen.set(s.name, n + 1);
+    if(n > 0) s.name = `${s.name} ${n + 1}`;
+  });
+
+  lastMultiRepo = stores;
+
+  const card = $('#multiRepoCard');
+  card.style.display = 'block';
+  renderMultiRepoPreview();
+  const dup = rawCount - stores.length;
+  // 直播流/视频文件后缀不是配置源，混进来会让对应仓库点开即失败，提示但不自动删
+  const streamish = stores.filter(s => /\.(m3u8|ts|flv|mp4|mkv)(\?|#|$)/i.test(s.url) || /\/hls\//i.test(s.url)).length;
+  $('#multiRepoInfo').textContent = `共 ${stores.length} 个仓库`
+    + (dup > 0 ? `（已去重 ${dup} 条）` : '')
+    + (streamish > 0 ? `　⚠️ ${streamish} 条疑似直播流/视频地址，非配置源，建议删除` : '');
+  card.scrollIntoView({ behavior:'smooth', block:'start' });
+  toast(`🏬 已生成 ${stores.length} 个仓库的组合多仓 JSON`);
+}
+
+function renderMultiRepoPreview(){
+  if(!lastMultiRepo) return;
+  $('#multiRepoPreview').textContent = JSON.stringify(multiRepoJSON(), null, 2);
+}
+
+// ============ Parse Button ============
+$('#btnParse').addEventListener('click', parseAll);
+
+// ============ Multi-repo Buttons ============
+$('#btnMultiRepo').addEventListener('click', buildMultiRepo);
+
+$('#btnMultiRepoCopy').addEventListener('click', () => {
+  if(!lastMultiRepo){ toast('❌ 请先点击「组合多仓」生成'); return; }
+  const json = JSON.stringify(multiRepoJSON(), null, 2);
+  navigator.clipboard.writeText(json).then(() => toast('📋 多仓 JSON 已复制')).catch(() => {
+    const ta = document.createElement('textarea'); ta.value = json; document.body.appendChild(ta); ta.select(); document.execCommand('copy'); document.body.removeChild(ta);
+    toast('📋 多仓 JSON 已复制');
+  });
+});
+
+$('#btnMultiRepoExport').addEventListener('click', () => {
+  if(!lastMultiRepo){ toast('❌ 请先点击「组合多仓」生成'); return; }
+  const json = JSON.stringify(multiRepoJSON(), null, 2);
+  const blob = new Blob([json], { type:'application/json;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = 'data.json'; document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+  toast('⬇️ 已导出 data.json');
+});
+
+// 编辑仓库名称：在预览区生成一个可编辑的表格，改完点「重新生成」写回
+$('#btnMultiRepoEdit').addEventListener('click', () => {
+  if(!lastMultiRepo){ toast('❌ 请先点击「组合多仓」生成'); return; }
+  const rows = lastMultiRepo.map((s, i) =>
+    `<div style="display:flex;gap:8px;margin-bottom:6px;align-items:center">
+       <input data-mi="${i}" value="${esc(s.name)}" style="flex:0 0 180px;padding:4px 6px;border:1px solid #cbd5e0;border-radius:4px;font-size:.78rem" placeholder="仓库名">
+       <span style="font-size:.72rem;color:var(--text2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(s.url)}</span>
+     </div>`).join('');
+  const box = $('#multiRepoPreview');
+  box.innerHTML = `<div id="mrEditArea" style="background:#0f172a;color:#e2e8f0;border-radius:6px;padding:12px;max-height:300px;overflow:auto">${rows}<button class="btn btn-sm btn-success" id="btnMultiRepoApply" style="margin-top:6px">✅ 应用改名并刷新预览</button></div>`;
+  $('#btnMultiRepoApply').addEventListener('click', () => {
+    box.querySelectorAll('input[data-mi]').forEach(inp => {
+      const i = +inp.dataset.mi;
+      const v = inp.value.trim();
+      if(v) lastMultiRepo[i].name = v;
+    });
+    renderMultiRepoPreview();
+    toast('✅ 名称已更新');
+  });
+});
+
+// ============ Init ============
+restoreWorkingSpider();
+updateExportInfo();
+// 后台自动探测可用 spider，用户零操作；先恢复缓存再探测，保证打开瞬间有值，探测到更好的再替换
+setTimeout(() => autoProbeSpiders().catch(() => {}), 200);
+})();
+</script>
+</body>
+</html>
